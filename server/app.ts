@@ -13,7 +13,7 @@ import { createTicketCodec } from "./tickets.js";
 import { Readable } from "node:stream";
 import { SharedBrowserBroker } from "./runtime/shared-browser-broker.js";
 import { RedisJobs, redisRestEvaluator } from "./runtime/redis-jobs.js";
-import { validateSync } from "./sync/document.js";
+import { validateSync, syncPage } from "./sync/document.js";
 import { AuthService } from "./auth/service.js";
 import { FileAuthStore, RedisAuthStore } from "./auth/store.js";
 
@@ -146,7 +146,8 @@ const handle = async (req: IncomingMessage, res: ServerResponse) => {
       if (!user) return json(res, 401, { error: "access_denied" });
       if (url.pathname === "/api/sync" && ["GET","POST"].includes(req.method || "")) {
         const input = validateSync(req.method === "GET" ? {since:Number(url.searchParams.get("since") || 0),changes:[]} : await readJson(req));
-        return json(res, 200, {userId:user.id,...await authStore.call(req.method === "GET" ? "syncRead" : "syncWrite", {...input,userId:user.id})});
+        const result = await authStore.call(req.method === "GET" ? "syncRead" : "syncWrite", {...input,userId:user.id});
+        return json(res, 200, {userId:user.id,...syncPage(result,input)});
       }
       if (req.method === "POST" && url.pathname === "/api/auth/logout") {
         await auth.logout(sessionToken(req)); setSession(res, "");

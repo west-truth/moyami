@@ -1,9 +1,12 @@
-export const MAX_SYNC_BYTES = 1024 * 1024;
+export const MAX_SYNC_BYTES = 5 * 1024 * 1024;
+// Bound acknowledgements (including large conflicts) alongside the paged delta.
+export const MAX_SYNC_CHANGES = 20;
+export const SYNC_PAGE_BYTES = 512 * 1024;
 export type SyncRow = { version: number; value: Record<string, unknown> | null };
 export type SyncDocument = { revision: number; rows: Record<string, SyncRow> };
 export type SyncChange = { key: string; base: number; value: SyncRow['value'] };
 export function validateSync(input: any): { since: number; changes: SyncChange[] } {
-  if (!input || !Number.isSafeInteger(input.since) || input.since < 0 || !Array.isArray(input.changes) || input.changes.length > 100) throw new Error('invalid_sync');
+  if (!input || !Number.isSafeInteger(input.since) || input.since < 0 || !Array.isArray(input.changes) || input.changes.length > MAX_SYNC_CHANGES) throw new Error('invalid_sync');
   const seen = new Set();
   for (const row of input.changes) {
     if (!row || typeof row.key !== 'string' || row.key.length > 12000 || !Number.isSafeInteger(row.base) || row.base < 0 || seen.has(row.key)) throw new Error('invalid_sync');
@@ -59,10 +62,26 @@ if op=='syncRead' or op=='syncWrite' then
  end
  local encoded=cjson.encode(doc)
  local count=0;for _ in pairs(doc.rows) do count=count+1 end
- if #encoded>1048576 or count>3000 then return fail('sync_limit') end
+ if #encoded>${MAX_SYNC_BYTES} or count>3000 then return fail('sync_limit') end
  if op=='syncWrite' then redis.call('SET',KEYS[6],encoded) end
  local rows={};for key,row in pairs(doc.rows) do if row.version>data.since or conflicts[key] then rows[key]=row end end
  for key in pairs(conflicts) do if not rows[key] then rows[key]={version=0,value=cjson.null} end end
  return done({revision=doc.revision,rows=rows,conflicts=conflicts})
 end
 `;
+
+// Keep each HTTP response below the hosting payload limit. Changed/conflicting rows
+// are always acknowledged; only the contiguous revision prefix advances the cursor.
+export function syncPage(result: SyncDocument, input: ReturnType<typeof validateSync>) {
+  const rows: SyncDocument['rows'] = {};
+  const changed = new Set(input.changes.map(row => row.key));
+  let bytes = 0, revision = input.since, more = false;
+  for (const [key, row] of Object.entries(result.rows).sort((a,b) => a[1].version - b[1].version)) {
+    if (row.version <= input.since) continue;
+    const size = Buffer.byteLength(JSON.stringify({[key]:row}));
+    if (bytes && bytes + size > SYNC_PAGE_BYTES) { more = true; break; }
+    rows[key] = row; bytes += size; revision = row.version;
+  }
+  for (const key of changed) if (result.rows[key]) rows[key] = result.rows[key];
+  return {rows, revision: more ? revision : result.revision, more};
+}

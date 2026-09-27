@@ -471,9 +471,14 @@ try {
     assert.equal(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth), true);
     await page.locator('#readerSettingsButton').click();
     assert.equal(await page.locator('#novelFont').isVisible(), true);
+    // Native Escape restores focus before the queued close handler restores it again.
+    // Arm the listener first and wait for that handler before sending a reader shortcut.
+    await page.evaluate(() => {
+      window.__settingsClosed = false;
+      document.getElementById('settingsDialog').addEventListener('close', () => { window.__settingsClosed = true; }, {once:true});
+    });
     await page.keyboard.press('Escape');
-    // Dialog close restores focus asynchronously; send the shortcut after that restoration.
-    await page.waitForFunction(() => !document.getElementById('settingsDialog').open && document.activeElement?.id === 'readerSettingsButton');
+    await page.waitForFunction(() => window.__settingsClosed);
     await page.evaluate(()=>document.activeElement?.blur()); await page.keyboard.press('i');
     assert.equal(await page.locator('body').evaluate(node => node.classList.contains('immersive')), true);
     await page.evaluate(()=>new Promise(resolve=>requestAnimationFrame(()=>requestAnimationFrame(resolve))));
