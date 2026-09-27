@@ -94,6 +94,7 @@ export function createSourceManager({ repositories, saveRepositories, selected, 
   $('closeSourceOptions').onclick = () => tab('sources');
   return {
     update(value) { controller?.abort(); catalog = value; renderRepositories(); draw(); status(`${catalog.sources.length}개 소스`); },
+    refresh() { if (catalog && !repositories().includes(catalog.repositoryUrl)) catalog=undefined; renderRepositories(); draw(); },
     open() { tab(repositories().length ? 'sources' : 'repositories'); renderRepositories(); draw(); if (!catalog && repositories().length) void browse(repositories()[0]); },
   };
 }

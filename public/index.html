@@ -110,7 +110,8 @@
     <div class="dialog-heading"><h2 id="settingsTitle" tabindex="-1">설정</h2><button class="icon-btn" data-close="settingsDialog" aria-label="설정 닫기"><span data-icon="close"></span></button></div>
     <nav class="settings-tabs" aria-label="설정 항목"><button data-settings="appearance">화면</button><button data-settings="reader" id="readerSettingsTab">읽기</button><button data-settings="sources">확장 소스</button><button data-settings="connection">연결</button><button data-settings="account">계정</button></nav>
     <section id="accountSettings" class="settings-section" hidden>
-      <h3>내 계정</h3><p id="accountName"></p><p>읽기 기록과 소스·리더 설정은 이 브라우저에 계정별로 저장됩니다. 기기 간 동기화는 제공하지 않습니다.</p>
+      <h3>내 계정</h3><p id="accountName"></p><p>같은 계정으로 로그인하면 읽던 위치·읽기 기록·저장소 목록·고정 소스를 이어서 사용할 수 있습니다. 표지와 리더 설정은 이 기기에만 보관합니다.</p>
+      <p id="syncStatus" role="status">동기화 준비 중…</p><button id="syncNow" class="ghost-btn">지금 동기화</button>
       <button id="logoutButton" class="ghost-btn">로그아웃</button>
       <div id="adminInvites" hidden><h3>새 사용자 초대</h3><p>가입 키는 24시간 안에 한 번 사용할 수 있습니다.</p><button id="createInvite" class="primary-btn">가입 키 발급</button>
       <div id="inviteResult" hidden><label>가입 키<input id="inviteKey" readonly /></label><p id="inviteExpiry"></p><button id="copyInvite" class="ghost-btn">복사</button><button id="revokeInvite" class="ghost-btn">이 키 취소</button></div></div>

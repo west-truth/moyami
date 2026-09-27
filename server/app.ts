@@ -13,6 +13,7 @@ import { createTicketCodec } from "./tickets.js";
 import { Readable } from "node:stream";
 import { SharedBrowserBroker } from "./runtime/shared-browser-broker.js";
 import { RedisJobs, redisRestEvaluator } from "./runtime/redis-jobs.js";
+import { validateSync } from "./sync/document.js";
 import { AuthService } from "./auth/service.js";
 import { FileAuthStore, RedisAuthStore } from "./auth/store.js";
 
@@ -30,9 +31,10 @@ const secureCookie = options.serverless || process.env.COOKIE_SECURE === "1";
 const tickets = createTicketCodec(secret);
 const service = new SourceService(process.env.SOURCE_OUTBOUND_PROXY);
 const evaluate = redisUrl && redisToken ? redisRestEvaluator(redisUrl, redisToken) : undefined;
-const auth = new AuthService(useRedis && evaluate
+const authStore = useRedis && evaluate
   ? new RedisAuthStore(evaluate, process.env.AUTH_NAMESPACE || "moyami")
-  : new FileAuthStore(process.env.AUTH_FILE || "data/auth.json"), bootstrapKey, secret);
+  : new FileAuthStore(process.env.AUTH_FILE || "data/auth.json");
+const auth = new AuthService(authStore, bootstrapKey, secret);
 const broker = useRedis
   ? evaluate ? new SharedBrowserBroker(service, new RedisJobs(evaluate, secret), process.env.SOURCE_OUTBOUND_PROXY) : null
   : new BrowserBroker(service, process.env.SOURCE_OUTBOUND_PROXY);
@@ -142,6 +144,10 @@ const handle = async (req: IncomingMessage, res: ServerResponse) => {
       }
       const user = await auth.authenticate(sessionToken(req));
       if (!user) return json(res, 401, { error: "access_denied" });
+      if (url.pathname === "/api/sync" && ["GET","POST"].includes(req.method || "")) {
+        const input = validateSync(req.method === "GET" ? {since:Number(url.searchParams.get("since") || 0),changes:[]} : await readJson(req));
+        return json(res, 200, {userId:user.id,...await authStore.call(req.method === "GET" ? "syncRead" : "syncWrite", {...input,userId:user.id})});
+      }
       if (req.method === "POST" && url.pathname === "/api/auth/logout") {
         await auth.logout(sessionToken(req)); setSession(res, "");
         return json(res, 200, { ok: true });

@@ -31,7 +31,14 @@ test('account HTTP flow: bootstrap, cookies, invites, CSRF, logout and missing c
     assert.equal((await post('runtime/cancel',{},owner)).status,200);
     const invitation=await (await post('auth/invites',{},owner)).json();
     const memberSignup=await post('auth/register',{username:'reader',password:'member-password',key:invitation.key});assert.equal(memberSignup.status,200);assert.equal((await memberSignup.json()).user.role,'reader');
-    const member=cookie(memberSignup);assert.equal((await post('auth/invites',{},member)).status,403);
+    const member=cookie(memberSignup);
+    const syncKey=JSON.stringify(['repo','https://example.com/index.json']);
+    const saved=await (await post('sync',{since:0,userId:'forged-user',changes:[{key:syncKey,base:0,value:{}}]},owner)).json();
+    assert.equal(saved.rows[syncKey].version,1);
+    const other=await (await fetch(base+'/api/sync',{headers:{cookie:member}})).json();assert.deepEqual(other.rows,{});
+    assert.equal((await fetch(base+'/api/sync')).status,401);
+    assert.equal((await post('sync',{since:0,changes:[]},owner,{origin:'https://evil.example'})).status,401);
+    assert.equal((await post('auth/invites',{},member)).status,403);
     assert.equal((await post('auth/register',{username:'reader2',password:'member-password',key:invitation.key})).status,401);
     const revoked=await (await post('auth/invites',{},owner)).json();await post('auth/invites/revoke',{id:revoked.id},owner);
     assert.equal((await post('auth/register',{username:'reader2',password:'member-password',key:revoked.key})).status,401);

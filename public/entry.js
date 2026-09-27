@@ -1,3 +1,4 @@
+import { startSync, flushSync } from '/account-sync.js';
 import { selectAccount } from '/account-storage.js';
 const $ = id => document.getElementById(id);
 const channel = typeof BroadcastChannel === 'function' ? new BroadcastChannel('moyami-auth') : null;
@@ -48,7 +49,7 @@ $('loginForm').onsubmit = async event => {
 };
 $('logoutButton').onclick = async () => {
   $('logoutButton').disabled = true;
-  try { await request('logout', {}); channel?.postMessage('changed'); expired(); }
+  try { await flushSync(); await request('logout', {}); channel?.postMessage('changed'); expired(); }
   catch(error) { $('accountStatus').textContent = message(error); }
   finally { $('logoutButton').disabled = false; }
 };
@@ -75,12 +76,16 @@ try {
   const status = await request('status'); initialized = status.initialized;
   document.title = status.name || 'moyami'; $('siteName').textContent = status.name || 'moyami';
   if (!status.configured) {
-    $('authIntro').textContent = `배포 설정에서 다음 항목을 연결한 뒤 다시 배포하세요: ${status.missing.join(', ')}`;
+    const needsStorage=status.missing.some(item=>item.includes('Redis'));
+    $('authIntro').textContent = needsStorage ? '계정과 읽기 기록을 보관할 저장 공간 연결이 필요합니다. 아래 안내에서 Vercel에 저장 공간을 연결하는 순서를 확인하세요.' : '첫 가입 키가 아직 설정되지 않았습니다. 아래 안내에서 키를 만들고 내 Vercel 프로젝트에 등록하세요.';
+    $('setupLink').href='/deploy.html#storage-help';
+    $('setupLink').textContent='설정 방법을 단계별로 보기';
     $('setupLink').hidden = false; $('authRetry').hidden = false;
   } else if (status.user) {
     account = status.user; selectAccount(account.id);
     $('accountName').textContent = `${account.username}${account.role === 'admin' ? ' · 관리자' : ''}`;
     $('adminInvites').hidden = account.role !== 'admin';
+    await startSync();
     await import('/app.js'); document.body.dataset.auth = 'ready';
   } else {
     registration = !initialized; draw(); $('loginForm').hidden = false; $('authToggle').hidden = false;

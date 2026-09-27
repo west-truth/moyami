@@ -8,6 +8,7 @@ const root=resolve('public');
 const server=createServer(async(req,res)=>{
   const path=new URL(req.url,'http://localhost').pathname;
   if(path==='/api/auth/status'){res.writeHead(200,{'content-type':'application/json'}).end(JSON.stringify({configured:true,initialized:true,user:{id:'pwa-fixture',username:'fixture',role:'admin'}}));return;}
+  if(path==='/api/sync'){res.writeHead(200,{'content-type':'application/json'}).end(JSON.stringify({userId:'pwa-fixture',revision:0,rows:{}}));return;}
   if(path.startsWith('/api/')){res.writeHead(401,{'content-type':'application/json'}).end('{"error":"access_denied"}');return;}
   const file=resolve(root,'.'+(path==='/'?'/index.html':path));
   if(!file.startsWith(root+'/')){res.writeHead(404).end();return;}

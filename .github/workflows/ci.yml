@@ -23,5 +23,6 @@ jobs:
       - run: npm test
       - run: npx playwright-core install --with-deps chromium
       - run: npm run test:auth
+      - run: npm run test:sync
       - run: npm run test:browser
       - run: npm run test:pwa

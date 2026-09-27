@@ -1,3 +1,4 @@
+import { queueProgress } from '/account-sync.js';
 import { localStorage, indexedDB } from "/account-storage.js";
 import { connectorMode, connectorCall } from "/connector.js";
 import { assignImage, hydrateImages, disposeImages, prefetchImages } from "/connector-images.js";
@@ -421,12 +422,14 @@ async function progressGet(chapterUrl, sourceKey = stateKey()) {
 async function progressSet(chapterUrl, value, sourceKey = stateKey()) {
   const db = await openDb();
   const key = progressKey(chapterUrl, sourceKey);
+  const progress = { ...value, updatedAt: Date.now() };
   await new Promise((resolve, reject) => {
     const tx = db.transaction("progress", "readwrite");
-    tx.objectStore("progress").put({ ...value, updatedAt: Date.now() }, key);
+    tx.objectStore("progress").put(progress, key);
     tx.oncomplete = resolve;
     tx.onerror = () => reject(tx.error);
   });
+  queueProgress(sourceKey, chapterUrl, progress);
   const entries = await new Promise((resolve) => {
     const tx = db.transaction("progress");
     const store = tx.objectStore("progress");
@@ -1214,6 +1217,11 @@ sourceManager = createSourceManager({
     if (!exists && pins.length >= 30) {notice("탭은 최대 30개까지 고정할 수 있습니다."); return;}
     localStorage.setItem("moya-source-pins",JSON.stringify(exists ? pins.filter(item => sourceIdentity(item) !== id) : [...pins,source])); renderSourceTabs();
   },
+});
+addEventListener('moyami-synced', () => {
+  renderRecent(); renderSourceTabs();
+  if (view === 'detail') void refreshReleases();
+  if ($('settingsDialog').open && !$('sourceSettings').hidden) sourceManager?.refresh();
 });
 $("recentQuery").oninput = renderRecent;
 

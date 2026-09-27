@@ -46,9 +46,9 @@ const web = createServer(async(req,res)=>{
       res.writeHead(200,{'content-type':'application/json'}).end(JSON.stringify(value));
     }
     else if(path === '/api/image'){serverRelayCalls++;res.writeHead(500).end();}
-    else if(path === '/reader' || /^\/(entry|account-storage|pwa|local-cache|cover-cache|metadata-cache|library-home|source-manager|(?:reader-fonts|novel-reader)|comic-reader|ui|app|source-runtime|connector|connector-images|host-config)\.js$/.test(path) || ['/styles.css','/moya.css', '/moya-ui.css', '/moya-ui.js','/branding/moya-wordmark.png'].includes(path) || ['/runtime/source-worker.js','/runtime/quickjs.wasm'].includes(path)) {
+    else if(path === '/reader' || /^\/(entry|account-storage|account-sync|pwa|local-cache|cover-cache|metadata-cache|library-home|source-manager|(?:reader-fonts|novel-reader)|comic-reader|ui|app|source-runtime|connector|connector-images|host-config)\.js$/.test(path) || ['/styles.css','/moya.css', '/moya-ui.css', '/moya-ui.js','/branding/moya-wordmark.png'].includes(path) || ['/runtime/source-worker.js','/runtime/quickjs.wasm'].includes(path)) {
       const file=path==='/reader'?'/index.html':path;
-      res.writeHead(200,{'content-type':file.endsWith('.png')?'image/png':file.endsWith('.js')?'text/javascript':file.endsWith('.wasm')?'application/wasm':file.endsWith('.css')?'text/css':'text/html'}).end(file === '/entry.js' ? (await readFile('public'+file,'utf8')).replace('selectAccount(account.id);','') : await readFile('public'+file));
+      res.writeHead(200,{'content-type':file.endsWith('.png')?'image/png':file.endsWith('.js')?'text/javascript':file.endsWith('.wasm')?'application/wasm':file.endsWith('.css')?'text/css':'text/html'}).end(file === '/entry.js' ? (await readFile('public'+file,'utf8')).replace('selectAccount(account.id);','').replace('await startSync();','') : await readFile('public'+file));
     }
     else res.writeHead(404).end();
   }catch{res.writeHead(500).end();}

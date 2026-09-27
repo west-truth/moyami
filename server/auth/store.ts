@@ -2,6 +2,7 @@ import { mkdir, readFile, rename, writeFile } from 'node:fs/promises';
 import { dirname } from 'node:path';
 import { createHash } from 'node:crypto';
 import type { Evaluate } from '../runtime/redis-jobs.js';
+import { changeDocument, syncScript, type SyncDocument } from '../sync/document.js';
 export type User = { id: string; username: string; password: string; role: 'admin' | 'reader' };
 export interface AuthStore { call(mode: string, input?: Record<string, unknown>): Promise<any> }
 // All registration checks and invitation consumption happen in one primary transaction.
@@ -11,6 +12,7 @@ local now = tonumber(redis.call('TIME')[1]) * 1000
 local function done(value) return cjson.encode(value) end
 local function fail(code) return done({error=code}) end
 local function get(key) local v=redis.call('GET',key); if v then return cjson.decode(v) end end
+${syncScript}
 if op=='status' then return done({initialized=redis.call('EXISTS',KEYS[1])==1}) end
 if op=='user' then return done(get(KEYS[2]) or false) end
 if op=='register' then
@@ -39,12 +41,12 @@ export class RedisAuthStore implements AuthStore {
   }
   async call(mode: string, input: Record<string, unknown> = {}) {
     const p=this.prefix;
-    const result=JSON.parse(await this.evaluate(authScript,[`${p}:initialized`,`${p}:user:${input.username || '-'}`,`${p}:invite:${input.inviteId || '-'}`,`${p}:session:${input.sessionId || '-'}`,`${p}:rate:${input.rateId || '-'}`],[mode,JSON.stringify(input)]));
+    const result=JSON.parse(await this.evaluate(authScript,[`${p}:initialized`,`${p}:user:${input.username || '-'}`,`${p}:invite:${input.inviteId || '-'}`,`${p}:session:${input.sessionId || '-'}`,`${p}:rate:${input.rateId || '-'}`,`${p}:sync:${input.userId || '-'}`],[mode,JSON.stringify(input)]));
     if(result?.error)throw new Error(result.error);
     return result;
   }
 }
-type State = { users: Record<string, User>; invites: Record<string, any>; sessions: Record<string, any>; rates: Record<string, {count:number;expires:number}> };
+type State = { sync?: Record<string, SyncDocument>; users: Record<string, User>; invites: Record<string, any>; sessions: Record<string, any>; rates: Record<string, {count:number;expires:number}> };
 export class FileAuthStore implements AuthStore {
   private queue: Promise<unknown> = Promise.resolve();
   constructor(private file: string) {}
@@ -56,7 +58,10 @@ export class FileAuthStore implements AuthStore {
       const now=Date.now();
       for(const group of [state.invites,state.sessions,state.rates])for(const [id,value] of Object.entries(group))if(value.expires<=now)delete group[id];
       let result: any={ok:true},write=true;
-      if(mode==='status'){result={initialized:Object.keys(state.users).length>0};write=false;}
+      if(mode==='syncRead' || mode==='syncWrite'){
+        state.sync ||= {};const doc=state.sync[input.userId] ||= {revision:0,rows:{}};
+        result=changeDocument(doc,input as any);write=mode==='syncWrite';
+      }else if(mode==='status'){result={initialized:Object.keys(state.users).length>0};write=false;}
       else if(mode==='user'){result=Object.hasOwn(state.users,input.username)?state.users[input.username]:false;write=false;}
       else if(mode==='register'){
         const first=!Object.keys(state.users).length;
