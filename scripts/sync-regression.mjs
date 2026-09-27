@@ -8,7 +8,7 @@ import { createApplication } from '../server/app.ts';
 const dir=await mkdtemp(`${tmpdir()}/moyami-sync-browser-`);
 process.env.BOOTSTRAP_KEY=randomBytes(32).toString('hex');process.env.AUTH_FILE=`${dir}/auth.json`;
 for(const key of ['BROKER_STORE','COOKIE_SECURE','UPSTASH_REDIS_REST_URL','UPSTASH_REDIS_REST_TOKEN','KV_REST_API_URL','KV_REST_API_TOKEN'])delete process.env[key];
-const app=createApplication(),server=createServer(app.handle);await new Promise(resolve=>server.listen(0,'127.0.0.1',resolve));
+const app=createApplication(),server=createServer((req,res)=>{app.handle(req,res).catch(()=>res.destroy());});await new Promise(resolve=>server.listen(0,'127.0.0.1',resolve));
 const base=`http://127.0.0.1:${server.address().port}`,repo='https://example.com/index.json',sourceKey=repo+'\n1',work='https://example.com/work',chapter='https://example.com/chapter';
 const browser=await chromium.launch({executablePath:process.env.MOYA_SOURCE_BROWSER_EXECUTABLE,headless:true});
 const contexts=[],errors=[];
