@@ -897,7 +897,7 @@ try {
   });
   await check('quick jump switches repositories without activating a source until selected', async context => {
     const page=await ready(context), other='https://other.example/index.json';
-    await page.evaluate(url=>localStorage.setItem('moya-source-repositories',JSON.stringify([url])),other);
+    await page.evaluate(url=>localStorage.setItem('moya-source-repositories',JSON.stringify([...JSON.parse(localStorage.getItem('moya-source-repositories')),url])),other);
     await page.route('**/api/catalog',async route=>{
       const response=await route.fetch(),data=await response.json();
       if(route.request().postDataJSON().repositoryUrl===other) data.sources=data.sources.map(row=>({...row,name:'다른 저장소 '+row.name}));
