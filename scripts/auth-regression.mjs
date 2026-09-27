@@ -1,0 +1,48 @@
+import assert from 'node:assert/strict';
+import { createServer } from 'node:http';
+import { mkdtemp, rm, mkdir } from 'node:fs/promises';
+import { randomBytes } from 'node:crypto';
+import { tmpdir } from 'node:os';
+import { chromium } from 'playwright-core';
+import { createApplication } from '../server/app.ts';
+const dir=await mkdtemp(`${tmpdir()}/moyami-browser-auth-`);
+process.env.BOOTSTRAP_KEY=randomBytes(32).toString('hex');process.env.AUTH_FILE=`${dir}/accounts.json`;
+for(const name of ['BROKER_STORE','COOKIE_SECURE','UPSTASH_REDIS_REST_URL','UPSTASH_REDIS_REST_TOKEN','KV_REST_API_URL','KV_REST_API_TOKEN'])delete process.env[name];
+const app=createApplication(),server=createServer(app.handle);
+await new Promise(resolve=>server.listen(0,'127.0.0.1',resolve));const base=`http://127.0.0.1:${server.address().port}`;
+const browser=await chromium.launch({executablePath:process.env.MOYA_SOURCE_BROWSER_EXECUTABLE,headless:true});
+const context=await browser.newContext({viewport:{width:390,height:844},isMobile:true,hasTouch:true,serviceWorkers:'block'});
+context.setDefaultTimeout(12000);
+const errors=[];let catalogCalls=0;
+context.on('page',page=>{page.on('pageerror',error=>errors.push(error.message));page.on('request',req=>{if(req.url().includes('/api/catalog'))catalogCalls++;});});
+const page=await context.newPage();
+const waitApp=()=>page.locator('body[data-auth="ready"]').waitFor();
+const settings=async()=>{await page.locator('#menuButton').click();await page.locator('#navigationDialog [data-settings="appearance"]').click();await page.locator('.settings-tabs [data-settings="account"]').click();};
+async function credentials(username,password,key){await page.locator('#username').fill(username);await page.locator('#password').fill(password);if(key)await page.locator('#signupKey').fill(key);await page.locator('#authSubmit').click();}
+try {
+  await page.goto(base);await page.locator('#loginForm:not([hidden])').waitFor();
+  assert.equal(await page.locator('#authSubmit').textContent(),'관리자 계정 만들기');
+  assert.equal(catalogCalls,0);
+  await credentials('owner','owner-password-123',process.env.BOOTSTRAP_KEY);await waitApp();
+  await page.locator('#emptySources').waitFor();assert.equal(catalogCalls,0);
+  await page.evaluate(async()=>{const {localStorage:s,indexedDB:db}=await import('/account-storage.js');s.setItem('moya-reader-secret-test','private');s.setItem('moya-app-theme','sepia');const request=db.open('account-probe',1);await new Promise((resolve,reject)=>{request.onupgradeneeded=()=>request.result.createObjectStore('data');request.onsuccess=()=>{request.result.close();resolve();};request.onerror=()=>reject(request.error);});});
+  await settings();await page.locator('#createInvite').click();await page.locator('#inviteResult:not([hidden])').waitFor();const key=await page.locator('#inviteKey').inputValue();assert.ok(key.length>=32);
+  const peer=await context.newPage();await peer.goto(base);await peer.locator('body[data-auth="ready"]').waitFor();
+  await page.locator('#logoutButton').click();await page.locator('#loginForm:not([hidden])').waitFor();await peer.locator('#loginForm:not([hidden])').waitFor();
+  assert.equal(await page.locator('#authSubmit').textContent(),'로그인');
+  await page.locator('#authToggle').click();await credentials('reader','reader-password-123',key);await waitApp();
+  assert.equal(await page.evaluate(async()=>(await import('/account-storage.js')).localStorage.getItem('moya-reader-secret-test')),null);
+  assert.equal(await page.evaluate(async()=>(await (await import('/account-storage.js')).indexedDB.databases()).some(row=>row.name==='account-probe')),false);
+  await settings();assert.equal(await page.locator('#adminInvites').isVisible(),false);
+  await page.locator('#logoutButton').click();await page.locator('#loginForm:not([hidden])').waitFor();await credentials('owner','owner-password-123');await waitApp();
+  assert.equal(await page.evaluate(async()=>(await import('/account-storage.js')).localStorage.getItem('moya-reader-secret-test')),'private');
+  assert.equal(await page.locator('html').getAttribute('data-theme'),'sepia');
+  await page.locator('#emptySources button').click();await page.locator('#repositoryUrl').waitFor();assert.equal(await page.locator('#repositorySelect option').count(),0);
+  await page.locator('[data-close="settingsDialog"]').click();await settings();await page.locator('#logoutButton').click();await page.locator('#loginForm:not([hidden])').waitFor();
+  await mkdir('.state/auth-regression',{recursive:true});await page.screenshot({path:'.state/auth-regression/login-mobile.png',fullPage:true});
+  assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth>innerWidth),false,'mobile login does not overflow');
+  await page.goto(base+'/deploy.html');await page.locator('#generate').click();const generated=await page.locator('#key').inputValue();assert.equal(generated.length,64);
+  const href=await page.locator('#deploy').getAttribute('href');assert.equal(href.includes(generated),false,'bootstrap secret never appears in deploy URL');assert.equal(new URL(href).searchParams.has('project-name'),false);
+  await page.screenshot({path:'.state/auth-regression/deploy-mobile.png',fullPage:true});
+  assert.deepEqual(errors,[]);console.log('PASS: bootstrap → empty library → invite → cross-tab logout → member isolation → owner login → mobile/deploy helper');
+}catch(error){console.log('AUTH DIAGNOSTIC',JSON.stringify({error:error.message,errors,state:await page.locator('body').getAttribute('data-auth'),intro:await page.locator('#authIntro').textContent(),accountStatus:await page.locator('#accountStatus').textContent()}));await mkdir('.state/auth-regression',{recursive:true});await page.screenshot({path:'.state/auth-regression/failure.png'});throw error;}finally{await context.close();await browser.close();app.close();server.closeAllConnections();await new Promise(resolve=>server.close(resolve));await rm(dir,{recursive:true,force:true});}

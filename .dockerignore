@@ -1,0 +1,16 @@
+node_modules
+.git
+.state
+.vercel
+data
+.env
+.env.*
+coverage
+tests
+probes
+*.log
+public/runtime
+public/install
+public/sw.js
+public/moya-ui.js
+public/moya-ui.css

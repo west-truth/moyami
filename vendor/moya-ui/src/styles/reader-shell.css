@@ -1,0 +1,599 @@
+.reader-screen {
+  --reader-layout-margin-x: var(--reading-margin-x);
+  position: relative;
+  height: 100dvh;
+  overflow: hidden;
+  background: var(--reading-background, var(--reader-canvas));
+}
+
+.top-progress {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  z-index: var(--layer-chrome);
+  height: 2px;
+  background: color-mix(in srgb, var(--border) 35%, transparent);
+}
+
+.reader-topbar,
+.reader-bottombar {
+  position: fixed;
+  left: 0;
+  right: 0;
+  z-index: var(--layer-chrome);
+  justify-content: space-between;
+  min-height: 58px;
+  padding: 8px 14px;
+  background: color-mix(in srgb, var(--reader-surface) 96%, transparent);
+  border-radius: 0;
+  backdrop-filter: blur(16px);
+  opacity: 0;
+  pointer-events: none;
+  transform: translateY(-8px);
+  transition:
+    opacity 180ms ease,
+    transform 180ms ease;
+}
+
+.reader-topbar {
+  top: 0;
+  border-bottom: 1px solid var(--border);
+}
+
+.reader-bottombar {
+  bottom: 0;
+  gap: 10px;
+  padding-bottom: max(8px, env(safe-area-inset-bottom, 0px));
+  border-top: 1px solid var(--border);
+  transform: translateY(8px);
+}
+
+.reader-position-bar,
+.reader-tool-row {
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.reader-position-bar {
+  flex: 1;
+}
+
+.reader-position-bar input[type='range'] {
+  min-width: 80px;
+  flex: 1;
+}
+
+.reader-tool-row {
+  flex: 0 0 auto;
+}
+
+.reader-chapter-step,
+.reader-mobile-tool {
+  min-height: 38px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 0 10px;
+  color: var(--text-2);
+  background: transparent;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-control);
+  cursor: pointer;
+  font-size: 0.76rem;
+  font-weight: 600;
+}
+
+.reader-chapter-step:hover,
+.reader-mobile-tool:hover,
+.reader-mobile-tool.active {
+  color: var(--text);
+  background: var(--app-surface-hover);
+}
+
+.reader-chapter-step:disabled,
+.reader-mobile-tool:disabled {
+  opacity: 0.38;
+  cursor: default;
+}
+
+.reader-mobile-tool {
+  display: none;
+}
+
+.reader-screen.chrome-visible .reader-topbar,
+.reader-screen.chrome-visible .reader-bottombar,
+.reader-topbar:focus-within,
+.reader-bottombar:focus-within,
+.reader-topbar.always-visible,
+.reader-bottombar.always-visible {
+  opacity: 1;
+  pointer-events: auto;
+  transform: translateY(0);
+}
+
+.reader-title {
+  min-width: 0;
+  flex: 1;
+  display: flex;
+  align-items: baseline;
+  gap: 9px;
+}
+
+.reader-title strong,
+.reader-title span {
+  display: block;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.reader-title span {
+  color: var(--text-2);
+  font-size: 0.74rem;
+}
+
+.reader-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.reader-scroll {
+  --reader-content-inset-top: max(var(--reading-margin-y), env(safe-area-inset-top, 0px));
+  --reader-content-inset-bottom: max(var(--reading-margin-y), env(safe-area-inset-bottom, 0px));
+  height: 100dvh;
+  overflow: auto;
+  overflow-anchor: none;
+  padding: var(--reader-content-inset-top) var(--reader-layout-margin-x) var(--reader-content-inset-bottom);
+  background: var(--reading-background, var(--reader-canvas));
+  filter: brightness(var(--reading-brightness, 1));
+}
+
+.reader-scroll:not(.reader-paginated-root) {
+  clip-path: inset(var(--reader-content-inset-top) 0 var(--reader-content-inset-bottom) 0);
+}
+
+/* Reader navigation remains available through wheel, touch, keys, and the scrubber. */
+.reader-scroll[data-reader-layer='scroll'] {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+  touch-action: pan-y;
+  overscroll-behavior-y: contain;
+}
+
+.reader-scroll[data-reader-layer='scroll']::-webkit-scrollbar {
+  display: none;
+  width: 0;
+  height: 0;
+}
+
+.reader-viewport-stack {
+  position: relative;
+  height: 100dvh;
+  overflow: hidden;
+}
+
+.reader-viewport-stack > .reader-viewport-layer {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+}
+
+.reader-viewport-layer.is-active {
+  z-index: 1;
+  visibility: visible;
+}
+
+.reader-viewport-layer.is-inactive {
+  z-index: 0;
+  visibility: hidden;
+  pointer-events: none;
+}
+
+/*
+ * A warm scroll layer still needs several frames to restore the exact source
+ * range. Keep the current page visible until that hidden layer has settled so
+ * the user never sees its stale virtualized position.
+ */
+.reader-screen.page-to-scroll-settling .reader-paginated-root.is-inactive {
+  z-index: 2;
+  visibility: visible;
+}
+
+.reader-screen.page-to-scroll-settling [data-reader-layer='scroll'].is-active {
+  z-index: 1;
+  visibility: hidden;
+  pointer-events: none;
+}
+
+/* Do not expose both animated page articles while handing off to scroll. */
+.reader-screen.page-to-scroll-settling .reader-pagination-stage,
+.reader-screen.page-to-scroll-settling .reader-paginated-page.is-current {
+  animation: none !important;
+  transform: none !important;
+}
+
+.reader-screen.page-to-scroll-settling .reader-paginated-page.is-outgoing {
+  display: none;
+}
+
+.reader-screen.addon-open .reader-scroll {
+  padding-right: max(var(--reader-layout-margin-x), calc(var(--reader-panel-width) + 20px));
+}
+
+.reader-scroll.page-flow {
+  overflow-y: hidden;
+  scroll-snap-type: y mandatory;
+}
+
+.reader-scroll.page-flow .reader-virtual-row {
+  scroll-snap-align: start;
+  scroll-snap-stop: always;
+}
+
+.reader-scroll:focus {
+  outline: none;
+}
+
+.reader-scroll:focus-visible {
+  outline: 2px solid color-mix(in srgb, var(--primary) 72%, transparent);
+  outline-offset: -3px;
+}
+
+.reader-screen.addon-open .reader-topbar,
+.reader-screen.addon-open .reader-bottombar {
+  right: var(--reader-panel-width);
+}
+
+/*
+ * Immersive reading is a latched state; the center tap explicitly opens/closes chrome.
+ * Keep these overrides stronger than hover/focus/"always visible" rules so
+ * pointer movement, scrolling and chapter navigation cannot reveal controls.
+ */
+.reader-screen.immersive .top-progress,
+.reader-screen.immersive .reader-mobile-search,
+.reader-screen.immersive .reader-search-results-layer,
+.reader-screen.immersive .reader-footnote-backdrop,
+.reader-screen.immersive .reader-pagination-controls,
+.reader-screen.immersive .chapter-nav {
+  display: none;
+}
+
+.reader-screen.immersive .reader-topbar,
+.reader-screen.immersive .reader-bottombar,
+.reader-screen.immersive .reader-topbar:focus-within,
+.reader-screen.immersive .reader-bottombar:focus-within,
+.reader-screen.immersive .reader-topbar.always-visible,
+.reader-screen.immersive .reader-bottombar.always-visible {
+  opacity: 0;
+  pointer-events: none;
+  visibility: hidden;
+}
+
+.reader-screen.immersive .reader-topbar {
+  transform: translateY(-100%);
+}
+
+.reader-screen.immersive .reader-bottombar {
+  transform: translateY(100%);
+}
+
+.reader-screen.immersive .reader-scroll,
+.reader-screen.immersive.addon-open .reader-scroll {
+  --reader-content-inset-top: max(var(--reading-margin-y), env(safe-area-inset-top, 0px));
+  --reader-content-inset-bottom: max(var(--reading-margin-y), env(safe-area-inset-bottom, 0px));
+  padding-top: var(--reader-content-inset-top);
+  padding-right: var(--reader-layout-margin-x);
+  padding-bottom: var(--reader-content-inset-bottom);
+  padding-left: var(--reader-layout-margin-x);
+}
+
+.reader-screen.immersive ~ .tts-compact-bar {
+  display: none;
+}
+
+.reader-mobile-search-toggle {
+  display: none;
+}
+
+.reader-mobile-search {
+  position: fixed;
+  top: 58px;
+  left: 8px;
+  right: 8px;
+  z-index: 28;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px;
+  background: color-mix(in srgb, var(--surface) 96%, transparent);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-panel);
+  box-shadow: var(--shadow-soft);
+  backdrop-filter: blur(16px);
+}
+
+.reader-mobile-search .search-box {
+  min-width: 0;
+  flex: 1;
+}
+
+.reader-search-results-layer {
+  position: fixed;
+  z-index: var(--layer-floating);
+  top: 66px;
+  left: 50%;
+  width: min(460px, calc(100vw - 28px));
+  transform: translateX(-50%);
+}
+
+.reader-overflow {
+  position: relative;
+  display: inline-flex;
+}
+
+.reader-overflow-menu {
+  position: absolute;
+  right: 0;
+  bottom: 44px;
+  z-index: var(--layer-floating);
+  min-width: 150px;
+  max-height: calc(100dvh - 140px);
+  overflow-y: auto;
+  display: grid;
+  gap: 2px;
+  padding: 6px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-panel);
+  box-shadow: var(--shadow);
+}
+
+.reader-auto-reading-overlay {
+  position: fixed;
+  z-index: 4;
+  pointer-events: none;
+  overflow: hidden;
+  background: var(--reading-background, var(--reader-canvas));
+  color: var(--reading-foreground, var(--text));
+  border-bottom: 2px solid var(--primary);
+}
+
+.reader-auto-reading-overlay[data-mode='rsvp'] {
+  display: grid;
+  place-items: center;
+  padding: 24px;
+  font-family: var(--reading-font-family, var(--font-serif));
+  font-size: clamp(24px, 5vw, 42px);
+  overflow-wrap: anywhere;
+  text-align: center;
+  border: 0;
+}
+
+.reader-auto-reading-overlay[hidden] {
+  display: none;
+}
+
+.reader-auto-reading-overlay[data-mode^='blind-'] {
+  border: 0;
+}
+
+.reader-auto-reading-overlay img {
+  max-width: 100%;
+  max-height: 100%;
+  object-fit: contain;
+}
+
+.reader-overflow-menu button {
+  min-height: 34px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 0 10px;
+  color: var(--text-2);
+  background: transparent;
+  border: 0;
+  border-radius: var(--radius-control);
+  cursor: pointer;
+  text-align: left;
+  white-space: nowrap;
+}
+
+.reader-overflow-menu button:hover,
+.reader-overflow-menu button:focus-visible {
+  color: var(--text);
+  background: var(--surface-2);
+}
+
+.modal-backdrop.reader-quick-view-backdrop {
+  place-items: end center;
+  padding-bottom: 0;
+}
+
+.modal.reader-quick-view-dialog {
+  display: flex;
+  flex-direction: column;
+  width: min(560px, calc(100vw - 24px));
+  max-height: min(720px, calc(100dvh - 48px));
+  margin-bottom: 12px;
+  padding: 0;
+  overflow: hidden;
+}
+
+.modal.reader-quick-view-dialog > header {
+  flex-shrink: 0;
+  min-height: 54px;
+  margin: 0;
+  padding: 11px 14px 11px 18px;
+}
+
+.reader-quick-view-content {
+  min-height: 0;
+  overscroll-behavior: contain;
+  display: grid;
+  gap: 18px;
+  padding: 18px;
+  overflow-y: auto;
+}
+
+.reader-quick-view-scope {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  padding: 11px 12px;
+  background: var(--app-accent-soft);
+  border: 1px solid color-mix(in srgb, var(--primary) 24%, var(--border));
+  border-radius: var(--radius-control);
+}
+
+.reader-quick-view-scope > span {
+  min-width: 0;
+  display: grid;
+  gap: 3px;
+}
+
+.reader-quick-view-scope strong,
+.reader-quick-view-scope small {
+  display: block;
+}
+
+.reader-quick-view-scope strong {
+  font-size: 0.78rem;
+}
+
+.reader-quick-view-scope small {
+  color: var(--text-2);
+  font-size: 0.68rem;
+  line-height: 1.45;
+}
+
+.reader-quick-view-section {
+  display: grid;
+  gap: 10px;
+}
+
+.reader-quick-view-section > h3 {
+  margin: 0;
+  font-size: 0.76rem;
+}
+
+.reader-quick-theme-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 7px;
+}
+
+.reader-quick-theme-grid button {
+  min-height: 54px;
+  display: grid;
+  place-items: center;
+  gap: 4px;
+  padding: 6px;
+  color: var(--text-2);
+  background: var(--app-surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-control);
+  font-size: 0.68rem;
+}
+
+.reader-quick-theme-grid button > span {
+  width: 24px;
+  height: 24px;
+  border: 1px solid color-mix(in srgb, var(--text) 22%, transparent);
+  border-radius: 50%;
+}
+
+.reader-quick-theme-grid button.active {
+  color: var(--text);
+  background: var(--app-accent-soft);
+  border-color: var(--primary);
+}
+
+.reader-quick-view-section .reader-settings-slider {
+  padding: 8px 0;
+}
+
+.reader-quick-view-all {
+  min-height: 44px;
+  justify-self: stretch;
+}
+
+@media (max-width: 699px) {
+  .modal-backdrop.reader-quick-view-backdrop {
+    padding: 0;
+  }
+
+  .modal.reader-quick-view-dialog {
+    display: flex;
+    flex-direction: column;
+    width: 100%;
+    max-height: min(82dvh, 720px);
+    margin: 0;
+    border-right: 0;
+    border-bottom: 0;
+    border-left: 0;
+    border-radius: var(--radius-overlay) var(--radius-overlay) 0 0;
+  }
+
+  .reader-quick-view-content {
+    min-height: 0;
+    overscroll-behavior: contain;
+    padding-bottom: calc(18px + env(safe-area-inset-bottom));
+  }
+
+  .reader-quick-view-scope {
+    align-items: stretch;
+    flex-direction: column;
+  }
+}
+
+.reader-loading::after {
+  content: '본문을 준비하는 중입니다.';
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  color: var(--text-2);
+  font-size: 0.9rem;
+}
+
+/* Keep the real layout measurable, but do not expose or scroll chapter start during resume. */
+.reader-scroll.is-opening {
+  overflow: hidden;
+  pointer-events: none;
+}
+
+.reader-scroll.is-opening .reader-document {
+  visibility: hidden;
+}
+
+.reader-opening {
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  padding: 24px;
+  color: var(--text-2);
+  background: var(--reading-background, var(--reader-canvas));
+  text-align: center;
+  touch-action: none;
+}
+
+/* Keep the restored source frame until the destination page has both geometry and text. */
+.reader-screen.scroll-to-page-settling [data-reader-layer='scroll'].is-inactive {
+  z-index: 2;
+  visibility: visible;
+}
+.reader-screen.scroll-to-page-settling .reader-paginated-root.is-active {
+  visibility: hidden;
+  pointer-events: none;
+}

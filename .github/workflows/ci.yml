@@ -1,0 +1,27 @@
+name: Verify
+on: [push, pull_request]
+permissions:
+  contents: read
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    services:
+      redis:
+        image: redis:7-alpine
+        ports: ['6379:6379']
+    env:
+      REDIS_TEST_PORT: '6379'
+      APP_URL: https://reader.example.com
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+      - run: npm ci
+      - run: npm run build:hosting
+      - run: npm test
+      - run: npx playwright-core install --with-deps chromium
+      - run: npm run test:auth
+      - run: npm run test:browser
+      - run: npm run test:pwa

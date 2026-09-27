@@ -1,0 +1,48 @@
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import { createServer } from 'node:http';
+import { mkdtemp, rm } from 'node:fs/promises';
+import { tmpdir } from 'node:os';
+import { createApplication } from '../server/app.js';
+
+test('account HTTP flow: bootstrap, cookies, invites, CSRF, logout and missing configuration', async () => {
+  const original = {...process.env}, directory=await mkdtemp(`${tmpdir()}/moyami-auth-`);
+  process.env.BOOTSTRAP_KEY='test-bootstrap-key-'.repeat(3);process.env.AUTH_FILE=`${directory}/auth.json`;process.env.COOKIE_SECURE='1';
+  for(const name of ['UPSTASH_REDIS_REST_URL','UPSTASH_REDIS_REST_TOKEN','KV_REST_API_URL','KV_REST_API_TOKEN','BROKER_STORE'])delete process.env[name];
+  let app=createApplication({serverless:true});
+  const server=createServer((req,res)=>{app.handle(req,res).catch(()=>res.destroy());});
+  await new Promise<void>(resolve=>server.listen(0,'127.0.0.1',resolve));
+  const base=`http://127.0.0.1:${(server.address() as {port:number}).port}`;
+  const post=(path:string,body:any,cookie='',extra={})=>fetch(base+'/api/'+path,{method:'POST',headers:{'content-type':'application/json',cookie,...extra},body:JSON.stringify(body)});
+  const cookie=(response:Response)=>response.headers.get('set-cookie')!.split(';')[0];
+  const credentials={username:'owner',password:'long-password-123'};
+  try {
+    const status=await (await fetch(base+'/api/auth/status')).json();assert.equal(status.configured,false);assert.deepEqual(status.missing,['Upstash Redis 연결']);
+    assert.equal((await fetch(base+'/api/catalog')).status,503);
+    app.close();app=createApplication();
+    assert.equal((await fetch(base+'/api/catalog')).status,401);
+    assert.equal((await post('auth/register',{...credentials,key:'x'.repeat(40)})).status,401);
+    assert.equal((await post('auth/register',{...credentials,key:process.env.BOOTSTRAP_KEY},'',{origin:'https://evil.example'})).status,401);
+    const signup=await post('auth/register',{...credentials,key:process.env.BOOTSTRAP_KEY});assert.equal(signup.status,200);assert.equal((await signup.json()).user.role,'admin');
+    for(const attr of ['HttpOnly','SameSite=Strict','Secure'])assert.ok(signup.headers.get('set-cookie')!.includes(attr));
+    const owner=cookie(signup);
+    assert.equal((await post('auth/register',{...credentials,username:'second',key:process.env.BOOTSTRAP_KEY})).status,401);
+    assert.equal((await post('runtime/cancel',{},owner,{'sec-fetch-site':'cross-site'})).status,401);
+    assert.equal((await post('runtime/cancel',{},owner)).status,200);
+    const invitation=await (await post('auth/invites',{},owner)).json();
+    const memberSignup=await post('auth/register',{username:'reader',password:'member-password',key:invitation.key});assert.equal(memberSignup.status,200);assert.equal((await memberSignup.json()).user.role,'reader');
+    const member=cookie(memberSignup);assert.equal((await post('auth/invites',{},member)).status,403);
+    assert.equal((await post('auth/register',{username:'reader2',password:'member-password',key:invitation.key})).status,401);
+    const revoked=await (await post('auth/invites',{},owner)).json();await post('auth/invites/revoke',{id:revoked.id},owner);
+    assert.equal((await post('auth/register',{username:'reader2',password:'member-password',key:revoked.key})).status,401);
+    assert.equal((await post('auth/logout',{},owner)).status,200);assert.equal((await post('runtime/cancel',{},owner)).status,401);
+    assert.equal((await post('auth/login',{...credentials,password:'wrong-password'})).status,401);
+    const login=await post('auth/login',credentials);assert.equal(login.status,200);
+    app.close();app=createApplication();
+    const resumed=await (await fetch(base+'/api/auth/status',{headers:{cookie:cookie(login)}})).json();assert.equal(resumed.user.username,'owner');assert.equal(resumed.initialized,true);
+    assert.equal((await post('catalog',{},cookie(login))).status,422,'no implicit source repository');
+    assert.equal((await post('auth/login',credentials,'',{'content-type':'text/plain'})).status,401);
+    for(let i=0;i<15;i++)await post('auth/login',{...credentials,password:'wrong-password'});
+    assert.equal((await post('auth/login',credentials)).status,429);
+  } finally {app.close();server.closeAllConnections();await new Promise<void>(resolve=>server.close(()=>resolve()));await rm(directory,{recursive:true,force:true});for(const key of Object.keys(process.env))if(!(key in original))delete process.env[key];Object.assign(process.env,original);}
+});

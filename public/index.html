@@ -1,0 +1,155 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover" />
+  <meta name="color-scheme" content="light dark" />
+  <meta name="theme-color" content="#17191c" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <meta name="apple-mobile-web-app-title" content="moyami" />
+  <link rel="manifest" href="/manifest.webmanifest" />
+  <link rel="icon" type="image/png" sizes="32x32" href="/icons/moya-32.png" />
+  <link rel="apple-touch-icon" href="/icons/moya-192.png" />
+  <title>moyami</title>
+  <link rel="stylesheet" href="/moya.css" />
+  <link rel="stylesheet" href="/moya-ui.css" />
+  <link rel="stylesheet" href="/styles.css" />
+</head>
+<body class="app-shell" data-screen="login" data-auth="pending">
+  <aside class="library-sidebar" id="sidebar" aria-label="라이브러리 탐색">
+    <button class="library-brand-lockup" data-nav="browse" aria-label="모야 탐색 홈"><span class="app-wordmark" role="img" aria-label="MOYA"></span></button>
+    <div class="library-sidebar-scroll">
+      <nav class="library-sidebar-list" aria-label="탐색 메뉴">
+        <button data-nav="browse" class="active" aria-current="page"><span data-icon="compass"></span><span>탐색</span></button>
+        <button data-nav="recent"><span data-icon="book"></span><span>최근 읽기</span></button>
+      </nav>
+      <section><div class="sidebar-section-head"><span class="library-sidebar-label">소스</span><button class="mini-icon-btn" data-settings="sources" aria-label="소스 관리"><span data-icon="settings"></span></button></div>
+        <nav class="library-sidebar-list" aria-label="연결된 소스"><button data-nav="browse"><span data-icon="plug"></span><span id="sourceName">확장 소스</span></button></nav>
+      </section>
+    </div>
+    <footer class="library-sidebar-footer"><button data-settings="appearance"><span data-icon="settings"></span><span>설정</span></button></footer>
+  </aside>
+  <div class="library-workspace">
+    <header class="discovery-topbar app-header" id="appHeader">
+      <div class="heading-group">
+        <button id="menuButton" class="icon-btn" aria-label="모야 메뉴" aria-haspopup="dialog"><span data-icon="menu"></span></button>
+        <button id="back" class="icon-btn" hidden aria-label="뒤로"><span data-icon="back"></span></button>
+        <span id="headingIcon" data-icon="compass"></span><h1 id="screenTitle">탐색</h1>
+        <div id="readerTitle" class="reader-title" hidden><strong id="readerWorkTitle"></strong><span id="readerChapterTitle"></span></div>
+      </div>
+      <div class="header-actions">
+        <span id="activity" role="status"></span><button id="readerSearchToggle" class="icon-btn" aria-label="본문 검색 열기" aria-expanded="false" hidden><span data-icon="search"></span></button>
+        <span id="readerLoadProgress" class="reader-load-progress reader-action" role="status" hidden></span>
+        <button id="pageBookmark" class="icon-btn reader-action" aria-label="북마크" title="북마크" aria-pressed="false" hidden><span data-icon="bookmark"></span></button>
+        <button id="readerNotes" class="icon-btn reader-action" aria-label="북마크·메모" title="북마크·메모" hidden><span data-icon="bookmark"></span></button>
+        <button id="readerAuto" class="icon-btn reader-action" aria-label="자동 읽기" title="자동 읽기"><span data-icon="play"></span></button>
+        <button id="readerSettingsButton" class="icon-btn reader-action" data-settings="reader" aria-label="읽기 설정" title="읽기 설정"><span data-icon="settings"></span></button>
+        <div id="workViewControl" class="browse-action"></div>
+        <button id="refreshList" class="icon-btn" aria-label="탐색 목록 새로고침"><span data-icon="refresh"></span></button>
+        <button class="ghost-btn browse-action" data-settings="sources"><span data-icon="plug"></span><span>소스 관리</span></button>
+        <button class="icon-btn library-action" data-settings="appearance" aria-label="설정"><span data-icon="settings"></span></button>
+      </div>
+      <div id="novelSearchToolbar" class="novel-search-toolbar" hidden><form id="novelSearchForm"><input id="novelSearch" type="search" placeholder="본문 검색" aria-label="본문 검색" /><button class="ghost-btn">검색</button></form><button id="novelSearchPrevious" class="icon-btn" aria-label="이전 검색 결과">‹</button><button id="novelSearchNext" class="icon-btn" aria-label="다음 검색 결과">›</button><span id="novelSearchStatus" role="status"></span></div>
+    </header>
+    <main id="workspaceContent">
+      <section id="login" class="center auth-screen">
+        <h1 id="siteName">moyami</h1><p id="authIntro" role="status">로그인 상태를 확인하는 중…</p>
+        <form id="loginForm" hidden>
+          <label>아이디<input id="username" name="username" autocomplete="username" autocapitalize="none" spellcheck="false" pattern="[a-zA-Z0-9_-]{3,32}" minlength="3" maxlength="32" required /><small>영문·숫자·밑줄·하이픈 3~32자</small></label>
+          <label>비밀번호<input id="password" name="password" type="password" autocomplete="current-password" minlength="10" maxlength="128" required /><small>10자 이상</small></label>
+          <label id="signupKeyField" hidden>가입 키<input id="signupKey" name="key" type="password" autocomplete="off" spellcheck="false" minlength="32" maxlength="256" /><small>서버를 처음 설정한다면 배포할 때 만든 키, 초대받았다면 관리자가 발급한 키를 입력하세요.</small></label>
+          <button class="primary-btn" id="authSubmit">로그인</button>
+        </form>
+        <p id="authError" role="alert" hidden></p>
+        <button id="authToggle" class="ghost-btn" hidden>가입 키로 회원가입</button>
+        <button id="authRetry" class="ghost-btn" hidden>다시 확인</button>
+        <a id="setupLink" href="/deploy.html" hidden>서버 설정 및 가입 키 만들기</a>
+      </section>
+      <section id="browse" class="discovery-body discovery-source-view" hidden>
+        <div id="emptySources" class="empty-state" hidden><h2>읽을 소스를 추가하세요</h2><p>확장 저장소 주소를 등록하고 원하는 만화·소설 소스를 선택할 수 있습니다.</p><button class="primary-btn" data-settings="sources">저장소 추가</button></div>
+        <div class="discovery-tab-row"><nav id="sourceTabs" class="discovery-tabs" aria-label="고정한 소스"></nav><button id="quickJump" class="ghost-btn">빠른 이동</button></div>
+        <div class="discovery-section-heading"><small>확장 소스</small><div class="discovery-section-title"><h2 id="browseSourceName">작품 탐색</h2></div></div>
+        <form id="searchForm" class="discovery-search"><span data-icon="search"></span><input id="query" type="search" placeholder="작품명 또는 작가 검색" aria-label="검색어" /><button class="primary-btn">검색</button></form>
+
+        <div class="discovery-source-modes"><button id="popular" class="ghost-btn" aria-pressed="true">인기</button><button id="latest" class="ghost-btn" aria-pressed="false">최신</button></div>
+        <details id="filterPanel" class="discovery-filters"><summary>필터</summary><div id="filters" class="sourcePreferences"></div><div class="discovery-filter-actions"><button id="applyFilters" class="primary-btn">필터 적용</button></div></details>
+        <div class="discovery-section-heading"><div class="discovery-section-title"><h2 id="listTitle">인기</h2></div></div>
+        <p id="browseUpdatedAt" class="field-help" hidden></p>
+        <div id="works" class="discovery-grid"></div>
+        <div class="pagination"><span id="browseCount"></span><button id="loadMore" class="ghost-btn">더 불러오기</button><span id="loadMoreStatus" role="status"></span></div>
+      </section>
+      <section id="recent" class="history-home" hidden>
+        <div class="history-heading"><div><span class="eyebrow">MY READING</span><h2>최근 읽기</h2><p>읽던 작품을 이어서 만나보세요.</p></div><span id="recentCount"></span></div>
+        <section id="recentFeatured" class="recent-band" aria-label="최근 읽던 작품" hidden></section>
+        <label class="discovery-search"><span data-icon="search"></span><input id="recentQuery" type="search" placeholder="작품 또는 소스 검색" aria-label="최근 읽기 검색" /></label>
+        <div id="recentWorks" class="history-grid"></div>
+        <div id="recentEmpty" class="empty-state"><h3 id="recentEmptyTitle"></h3><p id="recentEmptyHint"></p><button class="primary-btn" data-nav="browse">작품 탐색하기</button></div>
+      </section>
+      <section id="detail" class="book-detail-main" hidden>
+        <div class="book-detail-hero"><div id="workInfo" class="detail-hero-body"></div></div>
+        <div id="workMetadata" class="work-metadata"></div><div class="detail-hero-actions"><button id="continueReading" class="primary-btn">첫 화 보기</button></div>
+        <p id="detailUpdatedAt" class="field-help" hidden></p>
+        <div id="chapters"></div>
+      </section>
+      <section id="reader" hidden>
+        <div id="pages" class="pages"></div><article id="novelText" class="novelText" hidden></article>
+        <footer class="reader-bottombar always-visible" aria-label="읽기 조작">
+          <button id="previousChapter" class="icon-btn reader-chapter-step" aria-label="이전 회차" title="이전 회차"><span data-icon="previous"></span></button>
+          <div id="comicNavigation" class="comic-navigation"><label class="reader-page-position"><input id="readerPage" type="number" min="1" value="1" aria-label="이동할 페이지" /><span aria-hidden="true">/</span><span id="readerPageTotal">1</span></label><input id="readerSeek" type="range" min="1" max="1" value="1" aria-label="읽기 진행률" /></div>
+          <div id="novelNavigation" class="comic-navigation" hidden><input id="novelSeek" type="range" min="0" max="1000" value="0" aria-label="소설 읽기 진행률" /></div>
+          <span id="readerProgress" class="progress-label" role="status">0%</span>
+          <button id="nextChapter" class="icon-btn reader-chapter-step" aria-label="다음 회차" title="다음 회차"><span data-icon="next"></span></button>
+        </footer>
+      </section>
+      <section id="error" class="center" hidden><h1>불러오지 못했습니다</h1><p id="errorText"></p><div class="error-actions"><button id="errorQuickJump" class="ghost-btn">빠른 이동</button><button class="ghost-btn" data-settings="sources">확장 소스 관리</button><button id="retry" class="primary-btn">다시 시도</button><button id="acceptUpdate" class="ghost-btn" hidden>확장 업데이트 허용</button><button class="ghost-btn" data-settings="connection">연결 설정</button></div></section>
+    </main>
+  </div>
+  <dialog id="navigationDialog" class="navigation-dialog" aria-label="모야 메뉴"><div class="dialog-heading"><span class="app-wordmark" role="img" aria-label="MOYA"></span><button class="icon-btn" data-close="navigationDialog" aria-label="메뉴 닫기"><span data-icon="close"></span></button></div><div id="mobileNavigation"></div><footer class="library-sidebar-footer"><button data-settings="appearance"><span data-icon="settings"></span>설정</button></footer></dialog>
+  <dialog id="settingsDialog" class="settings-dialog" aria-labelledby="settingsTitle">
+    <div class="dialog-heading"><h2 id="settingsTitle" tabindex="-1">설정</h2><button class="icon-btn" data-close="settingsDialog" aria-label="설정 닫기"><span data-icon="close"></span></button></div>
+    <nav class="settings-tabs" aria-label="설정 항목"><button data-settings="appearance">화면</button><button data-settings="reader" id="readerSettingsTab">읽기</button><button data-settings="sources">확장 소스</button><button data-settings="connection">연결</button><button data-settings="account">계정</button></nav>
+    <section id="accountSettings" class="settings-section" hidden>
+      <h3>내 계정</h3><p id="accountName"></p><p>읽기 기록과 소스·리더 설정은 이 브라우저에 계정별로 저장됩니다. 기기 간 동기화는 제공하지 않습니다.</p>
+      <button id="logoutButton" class="ghost-btn">로그아웃</button>
+      <div id="adminInvites" hidden><h3>새 사용자 초대</h3><p>가입 키는 24시간 안에 한 번 사용할 수 있습니다.</p><button id="createInvite" class="primary-btn">가입 키 발급</button>
+      <div id="inviteResult" hidden><label>가입 키<input id="inviteKey" readonly /></label><p id="inviteExpiry"></p><button id="copyInvite" class="ghost-btn">복사</button><button id="revokeInvite" class="ghost-btn">이 키 취소</button></div></div>
+      <p id="accountStatus" role="status"></p>
+    </section>
+    <p id="settingsBusy" class="loading-inline" role="status" hidden></p><p id="settingsNotice" role="status" hidden></p>
+    <div class="settings-body">
+      <section id="appearanceSettings" class="settings-section"><h3>화면</h3><label>앱 테마<select id="appTheme"><option value="light">라이트</option><option value="dark">다크</option><option value="sepia">세피아</option><option value="midnight">미드나이트</option></select></label><div class="pwa-settings"><h3>앱 설치</h3><button id="installApp" class="primary-btn" hidden>앱 설치</button><p id="installStatus" class="field-help">브라우저 메뉴의 ‘앱 설치’ 또는 ‘홈 화면에 추가’를 이용하세요. iPhone·iPad에서는 공유 메뉴에서 추가할 수 있습니다.</p><p id="appUpdateStatus" class="field-help" role="status" hidden></p></div></section>
+      <section id="readerSettings" class="settings-section"><h3>읽기 설정</h3><p class="field-help">변경한 설정은 이 브라우저에 자동 저장되며 다른 작품에서도 유지됩니다.</p>
+        <div id="comicSettings"><label>보기 방식<select id="comicMode"><option value="single">한 장</option><option value="spread">양면</option><option value="continuous">세로</option><option value="continuous-seamless">세로 · 이음새 없음</option></select></label>
+        <label>읽기 방향<select id="comicDirection"><option value="ltr">왼쪽에서 오른쪽</option><option value="rtl">오른쪽에서 왼쪽</option></select></label>
+        <label>화면 맞춤<select id="comicFit"><option value="page">페이지 맞춤</option><option value="width">너비 맞춤</option><option value="height">높이 맞춤</option><option value="original">원본 크기</option></select></label>
+        <label>첫 페이지<select id="comicCover"><option value="single">표지 한 장</option><option value="pair">처음부터 양면</option></select></label>
+        <div class="reader-tool-row"><button id="readerZoomOut" class="ghost-btn" aria-label="축소">−</button><button id="readerZoom" class="ghost-btn" aria-label="확대 초기화">100%</button><button id="readerZoomIn" class="ghost-btn" aria-label="확대">＋</button></div>
+        <label>회전<select id="comicRotation"><option value="0">회전 없음</option><option value="90">90°</option><option value="180">180°</option><option value="270">270°</option></select></label><label>양면 시작 위치<select id="comicParity"><option value="auto">자동</option><option value="left">왼쪽</option><option value="right">오른쪽</option></select></label><label>페이지 전환<select id="comicMotion"><option value="none">즉시</option><option value="slide">슬라이드</option><option value="fade">페이드</option></select></label><label>여백 자르기<select id="comicCrop"><option value="off">끄기</option><option value="auto">자동</option><option value="manual">직접 조절</option></select></label><div id="comicCropSliders"></div><p id="comicCropStatus" role="status"></p><button id="comicThumbnails" class="ghost-btn">페이지 미리보기</button><div id="comicSliders"></div><label><input type="checkbox" id="comicGray" />흑백</label><label><input type="checkbox" id="comicInvert" />색상 반전</label>
+        <label>북마크<select id="comicBookmarks"><option value="">북마크로 이동</option></select></label></div>
+        <div id="novelSettingsPanel" hidden><div class="reader-font-tools"><button id="novelFontDown" class="ghost-btn" aria-label="글자 작게">가−</button><button id="novelFontUp" class="ghost-btn" aria-label="글자 크게">가＋</button><button id="novelLine" class="ghost-btn">줄 간격</button><button id="novelTheme" class="ghost-btn">본문 테마</button></div><label><input id="novelPerWork" type="checkbox" />이 작품만 별도 설정</label><div class="reader-tool-row"><button id="novelSpeak" class="ghost-btn">음성 읽기</button><button id="novelSelect" class="ghost-btn" aria-pressed="false">텍스트 선택</button><button id="novelBookmark" class="ghost-btn">북마크</button><button id="novelNotes" class="ghost-btn">북마크·메모</button></div><p class="field-help">텍스트 선택을 켜면 본문을 길게 눌러 하이라이트와 메모를 만들 수 있습니다. 선택을 끄면 화면 여백에서도 페이지를 넘길 수 있습니다.</p><label>글꼴<select id="novelFont"><option value="builtin-serif">명조</option><option value="builtin-sans">고딕</option><option value="builtin-mono">고정폭</option></select></label><label>본문 테마<select id="novelThemeSelect"><option value="light">페이퍼</option><option value="dark">그래파이트</option><option value="sepia">웜 페이퍼</option><option value="midnight">미드나이트</option><option value="custom">사용자 색상</option></select></label><label>글꼴 파일 추가<input id="novelFontUpload" type="file" accept=".woff,.woff2,.ttf,.otf" /></label><button id="novelFontDelete" class="ghost-btn">선택한 사용자 글꼴 삭제</button><p id="novelFontStatus" role="status"></p><label>본문 색<input id="novelForeground" type="color" /></label><label>배경 색<input id="novelBackground" type="color" /></label><button id="novelColorReset" class="ghost-btn">테마 기본색</button><div id="novelLayout"></div></div>
+        <div class="reader-tool-row"><button id="readerFullscreen" class="ghost-btn" aria-label="전체 화면"><span data-icon="fullscreen"></span>전체 화면</button></div>
+        <div id="readerGestures"></div></section>
+      <section id="sourceSettings" class="settings-section"><h3>확장 소스</h3>
+        <p>저장소에서 제공하는 소스를 선택해 작품을 탐색하세요.</p>
+        <nav class="source-management-tabs" aria-label="확장 관리 항목"><button id="manageSources" aria-pressed="true">소스</button><button id="manageRepositories" aria-pressed="false">저장소</button></nav>
+        <div id="managedSources"><label>저장소<select id="repositorySelect" aria-label="설치한 저장소"></select></label>
+          <label class="discovery-search"><span data-icon="search"></span><input id="sourceSearch" type="search" placeholder="소스 이름 검색" aria-label="소스 검색" /></label>
+          <p id="repositoryStatus" role="status"></p><div id="sourceCards" class="source-cards"></div>
+        </div>
+        <div id="managedRepositories" hidden><div id="repositoryCards" class="repository-cards"></div>
+          <details id="addRepository"><summary>저장소 추가</summary><form id="repositoryForm"><label>저장소 주소<input id="repositoryUrl" type="url" placeholder="https://…/index.min.json" aria-label="확장 저장소 URL" required /></label><p>사용할 Mangayomi JS 저장소의 주소를 입력하세요.</p><button class="primary-btn">추가하고 소스 확인</button></form></details>
+        </div>
+        <div id="sourceOptions" hidden><button class="ghost-btn" id="closeSourceOptions">‹ 소스 목록</button><h4 id="sourceOptionsTitle"></h4><div id="sourcePreferences" class="sourcePreferences"></div></div>
+      </section>
+      <section id="connectionSettings" class="settings-section"><h3>원본 연결 설정</h3><label>접속 방식<select id="networkMode"><option value="server">서버</option><option value="browser">내 브라우저 (연결 확장)</option></select></label><button id="connectorCheck" type="button" class="ghost-btn">확장 연결 확인</button><p id="connectorStatus" role="status">iPhone·iPad는 Safari, Android는 Firefox에서 연결 확장이 필요합니다.</p><p>사이트 권한·인증은 연결 확장 아이콘에서 설정하세요. 인증한 원본 탭은 열어 두세요.</p><a href="/connector-help.html">설치 및 사용 안내</a></section>
+    </div>
+  </dialog>
+  <nav id="mobileTabs" class="mobile-tabs" aria-label="주요 메뉴"><button data-nav="recent"><span data-icon="book"></span>최근 읽기</button><button data-nav="browse"><span data-icon="compass"></span>탐색</button><button data-settings="sources"><span data-icon="plug"></span>확장 소스</button></nav>
+  <div id="loadingStatus" class="loading-status" role="status" aria-live="polite" hidden><span class="loading-spinner" aria-hidden="true"></span><span id="loadingMessage"></span></div>
+  <div id="notice" role="status" class="notice" hidden></div>
+  <dialog id="comicThumbnailDialog" class="settings-dialog"><div class="dialog-heading"><h2>페이지 미리보기</h2><button data-close="comicThumbnailDialog" class="ghost-btn">닫기</button></div><div id="comicThumbnailGrid"></div></dialog><button id="novelSelectionDone" class="primary-btn" hidden>선택 끝내기</button><div id="novelSelectionRoot"></div><dialog id="novelNotesDialog" class="settings-dialog"><div class="dialog-heading"><h2>북마크·메모</h2><button data-close="novelNotesDialog" class="ghost-btn">닫기</button></div><p id="novelNotesEmpty">저장한 항목이 없습니다.</p><ul id="novelNotesList"></ul></dialog><dialog id="novelNoteDialog" class="settings-dialog"><form id="novelNoteForm"><h2>메모</h2><blockquote id="novelNoteQuote"></blockquote><label>메모 내용<textarea id="novelNoteText" maxlength="4000"></textarea></label><button class="primary-btn">저장</button><button type="button" data-close="novelNoteDialog" class="ghost-btn">취소</button></form></dialog><div id="quickJumpRoot"></div><div id="autoReadingRoot"></div>
+  <script type="module" src="/entry.js"></script>
+<script type="module" src="/pwa.js"></script>
+</body>
+</html>

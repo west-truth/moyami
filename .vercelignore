@@ -1,0 +1,10 @@
+.state/
+.vercel/
+data/
+.env
+.env.*
+!.env.example
+.git/
+coverage/
+probes/
+*.log

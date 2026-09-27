@@ -1,0 +1,44 @@
+{
+  "name": "moyami",
+  "version": "0.1.0",
+  "private": true,
+  "license": "Apache-2.0",
+  "type": "module",
+  "engines": {
+    "node": "22.x"
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.json --noEmit && npm run build:client",
+    "test": "node --import tsx --test tests/*.test.ts tests/client/*.test.ts",
+    "test:pwa": "node scripts/pwa-regression.mjs",
+    "test:browser": "node scripts/browser-regression.mjs",
+    "build:vercel": "node scripts/build-vercel.mjs",
+    "start": "tsx server/index.ts",
+    "build:client": "node scripts/build-client.mjs",
+    "build:extension": "node scripts/build-extension.mjs",
+    "test:connector": "node scripts/connector-regression.mjs",
+    "build:hosting": "tsc -p tsconfig.json --noEmit && node scripts/build-hosting.mjs",
+    "test:auth": "node --import tsx scripts/auth-regression.mjs"
+  },
+  "dependencies": {
+    "agent-base": "7.1.4",
+    "https-proxy-agent": "7.0.6",
+    "linkedom": "0.18.12",
+    "socks": "2.8.10",
+    "tsx": "4.20.5"
+  },
+  "devDependencies": {
+    "@jitl/quickjs-wasmfile-release-sync": "0.32.0",
+    "@noble/ciphers": "2.4.0",
+    "@noble/hashes": "2.0.1",
+    "@tanstack/react-virtual": "3.14.5",
+    "@types/node": "22.18.6",
+    "esbuild": "0.25.12",
+    "lucide-react": "0.468.0",
+    "playwright-core": "1.61.1",
+    "quickjs-emscripten-core": "0.32.0",
+    "react": "18.3.1",
+    "react-dom": "18.3.1",
+    "typescript": "5.9.2"
+  }
+}

@@ -1,0 +1,320 @@
+import { AlertTriangle, LoaderCircle, RefreshCw, Search } from 'lucide-react';
+import { useEffect, useMemo, useRef, type ReactNode } from 'react';
+import { useNavigationViewState } from '../navigation/navigation-view-state';
+import { externalItemKeyId } from '../../external-sources/contracts';
+import { formatCount } from '../../utils/format';
+import { ChapterPagination } from '../chapters/ChapterPagination';
+import { useReadingChapterPage } from '../chapters/use-reading-chapter-page';
+import {
+  filterAndSortReleases,
+  paginateReleases,
+  SOURCE_RELEASE_PAGE_SIZE,
+  type ReleaseReadFilter,
+  type ReleaseSort,
+} from './source-release-list-model';
+import type { ExternalSourceController, ExternalSourceItemView } from './useExternalSourceController';
+
+export function SourceReleasePanel({
+  controller,
+  items,
+  renderItem,
+  selectionEnabled = true,
+}: {
+  selectionEnabled?: boolean;
+  controller: ExternalSourceController;
+  items: readonly ExternalSourceItemView[];
+  renderItem(item: ExternalSourceItemView): ReactNode;
+}) {
+  const location = JSON.stringify([
+    'source-releases',
+    controller.activeSourceId,
+    controller.localSeriesNovel?.id,
+    controller.breadcrumbs.map((item) => item.parentRef),
+  ]);
+  const [query, setQuery] = useNavigationViewState(`${location}:query`, '');
+  const [readFilter, setReadFilter] = useNavigationViewState<ReleaseReadFilter>(`${location}:filter`, 'all');
+  const [sort, setSort] = useNavigationViewState<ReleaseSort>(`${location}:sort`, 'asc');
+  const sorted = useMemo(() => filterAndSortReleases(items, query, readFilter, sort), [items, query, readFilter, sort]);
+  const [requestedPage, setRequestedPage] = useReadingChapterPage(
+    `${location}:page`,
+    sorted.findIndex((item) => item.readingState === 'current'),
+    sorted.length,
+    SOURCE_RELEASE_PAGE_SIZE,
+    // Keep downloaded subsets usable, but settle the reading page only after catalog preparation.
+    !controller.loading &&
+      !controller.catalogPreparing &&
+      !controller.nextCursor &&
+      !controller.listError &&
+      !controller.stale,
+  );
+  const page = paginateReleases(sorted, requestedPage);
+  const cursor = controller.nextCursor;
+  const partial = Boolean(cursor || controller.listError || controller.stale);
+
+  const selectable = page.items.filter(
+    (item) =>
+      item.importability !== 'unsupported' &&
+      (item.importState === 'available' || item.importState === 'update_available' || item.importState === 'imported'),
+  );
+  const selectedHere = selectable.filter((item) => item.selected).length;
+  const selectedTotal = items.filter(
+    (item) =>
+      item.selected &&
+      (item.importState === 'available' || item.importState === 'update_available' || item.importState === 'imported'),
+  ).length;
+  const selectionRef = useRef<HTMLInputElement>(null);
+  useEffect(() => {
+    if (selectionRef.current) selectionRef.current.indeterminate = selectedHere > 0 && selectedHere < selectable.length;
+  }, [selectedHere, selectable.length]);
+
+  return (
+    <section className="source-hub-items chapter-panel source-hub-release-panel" aria-labelledby="source-items-title">
+      <div className="source-hub-section-heading source-hub-items-heading chapter-panel-heading">
+        <div>
+          <h2 id="source-items-title">회차</h2>
+          <span>
+            {formatCount(items.length)}화{partial ? ' 불러옴' : ''}
+          </span>
+          {controller.catalogLoading && <span role="status">목차 확인 중</span>}
+          {controller.deletingDownloads && (
+            <span role="status">
+              <LoaderCircle size={14} className="spin" /> 다운로드 삭제 중
+            </span>
+          )}
+          {controller.catalogUpdateAvailable && (
+            <button
+              type="button"
+              className="ghost-btn"
+              onClick={() => {
+                controller.applyCatalogUpdate?.();
+                setRequestedPage(1);
+              }}
+            >
+              새 목차 적용
+            </button>
+          )}
+        </div>
+        {selectionEnabled && <label>
+          <input
+            ref={selectionRef}
+            type="checkbox"
+            checked={selectable.length > 0 && selectedHere === selectable.length}
+            disabled={!selectable.length || controller.busy}
+            onChange={(event) =>
+              controller.selectAllSupported(
+                event.target.checked,
+                selectable.map((item) => externalItemKeyId(item.key)),
+              )
+            }
+          />
+          이 페이지 선택
+        </label>}
+      </div>
+      {controller.setAutoDownloadNext && controller.activeSourceId && (
+        <div className="source-auto-download-option">
+          <label>
+            <input
+              type="checkbox"
+              checked={controller.autoDownloadNext ?? false}
+              onChange={(event) => controller.setAutoDownloadNext?.(event.target.checked)}
+            />
+            읽는 동안 다음 회차 자동 다운로드
+          </label>
+          {controller.setAutoDownloadNextCount && (
+            <div className="source-auto-download-count" role="group" aria-label="자동 다운로드 회차 수">
+              {([1, 2, 3] as const).map((count) => (
+                <button
+                  key={count}
+                  type="button"
+                  aria-pressed={(controller.autoDownloadNextCount ?? 1) === count}
+                  disabled={!controller.autoDownloadNext}
+                  onClick={() => controller.setAutoDownloadNextCount?.(count)}
+                >
+                  {count}화
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
+      <div className="chapter-toolbar">
+        <label className="chapter-search">
+          <Search size={16} />
+          <input
+            type="search"
+            value={query}
+            placeholder="회차 또는 제목 검색"
+            aria-label="회차 검색"
+            onChange={(event) => {
+              setQuery(event.target.value);
+              setRequestedPage(1);
+            }}
+          />
+        </label>
+        <div className="chapter-filter" role="group" aria-label="읽음 상태 필터">
+          {(['all', 'unread', 'read'] as const).map((value) => (
+            <button
+              key={value}
+              type="button"
+              className={readFilter === value ? 'is-selected' : ''}
+              aria-pressed={readFilter === value}
+              onClick={() => {
+                setReadFilter(value);
+                setRequestedPage(1);
+              }}
+            >
+              {value === 'all' ? '전체' : value === 'unread' ? '안 읽음' : '읽음'}
+            </button>
+          ))}
+        </div>
+        <label className="chapter-order">
+          <span>정렬</span>
+          <select
+            aria-label="회차 정렬"
+            value={sort}
+            onChange={(event) => {
+              setSort(event.target.value as ReleaseSort);
+              setRequestedPage(1);
+            }}
+          >
+            <option value="asc">처음 화부터</option>
+            <option value="desc">최신 화부터</option>
+          </select>
+        </label>
+      </div>
+      {partial && (
+        <div className="source-release-catalog-status" role="status">
+          <span>
+            {controller.loading || controller.catalogLoading
+              ? '나머지 목차를 백그라운드에서 불러오는 중입니다. 회차를 선택하거나 읽을 수 있습니다.'
+              : '목차 일부만 불러왔습니다.'}{' '}
+            검색·정렬은 불러온 {formatCount(items.length)}화에 적용됩니다.
+          </span>
+          {cursor && !controller.loading && !controller.catalogLoading && !controller.listError && (
+            <button
+              className="ghost-btn"
+              type="button"
+              disabled={controller.blockingBusy || controller.importBusy}
+              onClick={() => {
+                void controller.loadMore();
+              }}
+            >
+              목차 더 불러오기
+            </button>
+          )}
+        </div>
+      )}
+      {controller.listError && (
+        <div className="source-hub-list-error" role="alert">
+          <AlertTriangle size={18} />
+          <div>
+            <strong>목록을 불러오지 못했습니다.</strong>
+            <p>{controller.listError.message}</p>
+            <button
+              className="ghost-btn"
+              type="button"
+              disabled={controller.loading || controller.blockingBusy}
+              onClick={() => {
+                void controller.listError?.retry();
+              }}
+            >
+              <RefreshCw size={15} /> 목록 다시 불러오기
+            </button>
+          </div>
+        </div>
+      )}
+      {controller.loading && (
+        <div className="source-hub-loading-status" role="status">
+          <LoaderCircle size={16} className="spin" />
+          전체 목차를 준비하고 있습니다. 처음 화부터 한 번에 표시합니다.
+        </div>
+      )}
+      {sorted.length ? (
+        <div className="source-hub-release-list" aria-label="작품 회차 목록">
+          <div className="source-hub-release-list-head" aria-hidden="true" hidden={!selectionEnabled}>
+            <span />
+            <span>회차</span>
+            <span>제목</span>
+            <span>업데이트</span>
+            <span>상태</span>
+            <span>작업</span>
+          </div>
+          {page.items.map(renderItem)}
+        </div>
+      ) : !controller.loading ? (
+        <div className="empty-panel chapter-empty">
+          <strong>{query || readFilter !== 'all' ? '검색 결과가 없습니다.' : '표시할 회차가 없습니다.'}</strong>
+          {(query || readFilter !== 'all') && (
+            <button
+              type="button"
+              className="ghost-btn"
+              onClick={() => {
+                setQuery('');
+                setReadFilter('all');
+                setRequestedPage(1);
+              }}
+            >
+              검색·필터 초기화
+            </button>
+          )}
+        </div>
+      ) : null}
+      <footer className="chapter-panel-footer">
+        <span>
+          {page.rangeStart}–{page.rangeEnd} / {formatCount(sorted.length)}화
+        </span>
+        <ChapterPagination page={page.page} pageCount={page.pageCount} onPage={setRequestedPage} />
+        <span>페이지당 {SOURCE_RELEASE_PAGE_SIZE}화</span>
+      </footer>
+      {selectedTotal > 0 && (
+        <div className="source-release-selection-summary">
+          <span>
+            전체 {formatCount(selectedTotal)}화 선택 · 이 페이지 {selectedHere}화
+          </span>
+          {controller.setReleasesRead && (
+            <>
+              <button
+                type="button"
+                className="ghost-btn"
+                disabled={controller.busy}
+                onClick={() =>
+                  void controller
+                    .setReleasesRead?.(
+                      items.filter((item) => item.selected),
+                      true,
+                    )
+                    .catch(() => undefined)
+                }
+              >
+                읽음
+              </button>
+              <button
+                type="button"
+                className="ghost-btn"
+                disabled={controller.busy}
+                onClick={() =>
+                  void controller
+                    .setReleasesRead?.(
+                      items.filter((item) => item.selected),
+                      false,
+                    )
+                    .catch(() => undefined)
+                }
+              >
+                안 읽음
+              </button>
+            </>
+          )}
+          <button
+            type="button"
+            className="ghost-btn"
+            disabled={controller.busy}
+            onClick={() => controller.selectAllSupported(false)}
+          >
+            전체 선택 해제
+          </button>
+        </div>
+      )}
+    </section>
+  );
+}
