@@ -46,20 +46,5 @@ try{
  await flush(pa);await flush(pb);await flush(pa);assert.equal(JSON.parse(await stored(pa,recentKey)).length,2);
  await a.setOffline(true);await pa.evaluate(async()=>{const {localStorage:s}=await import('/account-storage.js');s.setItem('moya-source-repositories',JSON.stringify(['https://offline.example/index.json']));});assert.equal(await flush(pa),false);
  await a.setOffline(false);await pa.reload();await pa.locator('body[data-auth=ready]').waitFor();await flush(pa);await flush(pb);assert.deepEqual(JSON.parse(await stored(pb,'moya-source-repositories')),['https://offline.example/index.json']);
- // A fresh device must fetch a >4.5MB account in bounded responses.
- for(let batch=0;batch<17;batch++){
-   const changes=Array.from({length:20},(_,i)=>({key:JSON.stringify(['progress',repo,'1',chapter+'/large/'+(batch*20+i)]),base:0,value:{page:batch*20+i+1,readerAnchor:{bookId:'a'.repeat(8000),sectionId:'b'.repeat(7000)}}}));
-   const response=await a.request.post(base+'/api/sync',{data:{since:0,changes}});
-   assert.equal(response.status(),200);assert.ok((await response.body()).length<1_000_000);
- }
- const c=await device();assert.equal((await c.request.post(base+'/api/auth/login',{data:creds})).status(),200);
- const sizes=[];c.on('response',async response=>{if(new URL(response.url()).pathname==='/api/sync')sizes.push((await response.body()).length);});
- const pc=await open(c);assert.equal(await flush(pc),true);
- const large=await pc.evaluate(async prefix=>{
-   const {indexedDB}=await import('/account-storage.js');
-   return new Promise((resolve,reject)=>{const req=indexedDB.open('moya-source-lite',2);req.onsuccess=()=>{const db=req.result,tx=db.transaction('progress'),store=tx.objectStore('progress'),keys=store.getAllKeys(),last=store.get(prefix+'339');tx.oncomplete=()=>{db.close();resolve({count:keys.result.filter(key=>key.startsWith(prefix)).length,last:last.result});};tx.onerror=()=>reject(tx.error);};req.onerror=()=>reject(req.error);});
- },sourceKey+'\n'+chapter+'/large/');
- assert.equal(large.count,340);assert.equal(large.last.page,340);assert.equal(large.last.readerAnchor.sectionId.length,7000);
- assert.ok(sizes.length>1);assert.ok(sizes.every(size=>size<1_000_000));
- assert.deepEqual(errors,[]);console.log('PASS: two devices sync records, positions, repositories and pins; omit images/settings; restore covers on resume; preserve offline changes; merge independent edits and propagate deletions; download >4.5MB in bounded pages');
+ assert.deepEqual(errors,[]);console.log('PASS: two devices sync records, positions, repositories and pins; omit images/settings; restore covers on resume; preserve offline changes; merge independent edits and propagate deletions');
 }finally{await Promise.all(contexts.map(c=>c.close()));await browser.close();app.close();server.closeAllConnections();await new Promise(resolve=>server.close(resolve));await rm(dir,{recursive:true,force:true});}

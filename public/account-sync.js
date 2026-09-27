@@ -55,25 +55,12 @@ async function apply(key,value,expectedId){
     writeLocal(key,rows);
   }
 }
-async function requestPage(since,changes){
+async function request(since,changes){
   const response=await fetch('/api/sync'+(changes.length?'':`?since=${since}`),{cache:'no-store',signal:AbortSignal.timeout(8000),...(changes.length?{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({since,changes})}:{})});
   if(response.status===401){dispatchEvent(new Event('moyami-session-expired'));throw new Error('access_denied');}
   const result=await response.json();if(!response.ok)throw new Error(result.error);
   if(result.userId!==accountId()){dispatchEvent(new Event('moyami-session-expired'));throw new Error('access_denied');}
   return result;
-}
-// Assemble a complete delta before advancing local metadata or acknowledging writes.
-// A failed page leaves the durable outbox and cursor intact for a safe retry.
-async function request(since,changes){
-  const rows={};
-  for(let page=0;page<64;page++){
-    const result=await requestPage(since,page===0?changes:[]);
-    Object.assign(rows,result.rows);
-    if(!result.more)return {...result,rows};
-    if(!Number.isSafeInteger(result.revision)||result.revision<=since)throw new Error('invalid_sync_cursor');
-    since=result.revision;
-  }
-  throw new Error('sync_busy');
 }
 async function merge(result,sent){
   const meta=metadata(), sentByKey=new Map(sent.map(row=>[row.key,row]));
@@ -112,7 +99,7 @@ export async function flushSync(){
       }else if(!rows.length){await merge(await request(metadata().revision,[]),[]);}
       for(let batch=0;rows.length&&batch<100;batch++){
         const sent=[];let bytes=0;
-        for(const row of rows){const size=new TextEncoder().encode(JSON.stringify(row)).length;if(sent.length && (bytes+size>40000 || sent.length>=20))break;sent.push(row);bytes+=size;}
+        for(const row of rows){const size=new TextEncoder().encode(JSON.stringify(row)).length;if(sent.length && (bytes+size>40000 || sent.length>=100))break;sent.push(row);bytes+=size;}
         const changes=sent.map(({key,base,value})=>({key,base,value}));
         await merge(await request(metadata().revision,changes),sent);rows=pending();
       }

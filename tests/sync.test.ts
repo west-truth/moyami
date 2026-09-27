@@ -6,7 +6,7 @@ import { mkdtemp, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import type { Evaluate } from '../server/runtime/redis-jobs.js';
 import { FileAuthStore, RedisAuthStore, type AuthStore } from '../server/auth/store.js';
-import { validateSync, syncPage, MAX_SYNC_BYTES, SYNC_PAGE_BYTES } from '../server/sync/document.js';
+import { validateSync, MAX_SYNC_BYTES } from '../server/sync/document.js';
 const port=Number(process.env.REDIS_TEST_PORT);
 const evaluate: Evaluate = (script, keys, args) => new Promise((resolve, reject) => {
   const parts = ['EVAL', script, String(keys.length), ...keys, ...args];
@@ -58,22 +58,13 @@ async function exercise(a:AuthStore,b:AuthStore){
  assert.equal(Object.keys(latest.rows).length,2,'200 saves keep two records, with no historical copies');
  assert.equal(latest.rows[progressKey].value.page,200);
  assert.ok(Buffer.byteLength(JSON.stringify(latest))<=firstSize+32,'only numeric digit lengths may grow');
- // Fill past both the old 1MiB quota and Vercel's 4.5MB response limit.
- const batch=(start:number)=>Array.from({length:20},(_,i)=>({key:JSON.stringify(['progress','https://example.com/index.json','1','https://example.com/big/'+(start+i)]),base:0,value:{readerAnchor:{bookId:'a'.repeat(8000),sectionId:'b'.repeat(7000)}}}));
- for(let i=0;i<17;i++)await write(a,batch(i*20),'large');
+ // The larger account accepts >1MiB, while an over-quota batch is atomic.
+ const batch=(start:number)=>Array.from({length:100},(_,i)=>({key:JSON.stringify(['progress','https://example.com/index.json','1','https://example.com/big/'+(start+i)]),base:0,value:{readerAnchor:{bookId:'a'.repeat(8000),sectionId:'b'.repeat(7000)}}}));
+ for(let i=0;i<2;i++)await write(a,batch(i*100),'large');
  const large=await b.call('syncRead',{userId:'large',since:0,changes:[]});
- assert.ok(Buffer.byteLength(JSON.stringify(large))>4_500_000);
+ assert.ok(Buffer.byteLength(JSON.stringify(large))>2.8*1024*1024);
  assert.ok(Buffer.byteLength(JSON.stringify(large))<MAX_SYNC_BYTES);
- const restored:Record<string,unknown>={};let since=0,pages=0;
- for(;;){
-   const result=syncPage(await b.call('syncRead',{userId:'large',since,changes:[]}),{since,changes:[]});
-   assert.ok(Buffer.byteLength(JSON.stringify(result))<SYNC_PAGE_BYTES+1024);
-   Object.assign(restored,result.rows);pages++;since=result.revision;
-   if(!result.more)break;
- }
- assert.ok(pages>1);assert.deepEqual(restored,large.rows);assert.equal(since,large.revision);
- // A rejected batch must not partially save or consume revisions.
- await assert.rejects(write(a,batch(340),'large'),/sync_limit/);
+ await assert.rejects(write(a,batch(200),'large'),/sync_limit/);
  assert.deepEqual(await b.call('syncRead',{userId:'large',since:0,changes:[]}),large);
  assert.equal((await a.call('syncRead',{userId:'alice',since:0,changes:[]})).revision,3);
 }
@@ -87,13 +78,4 @@ test('local sync: isolation, CAS conflicts, deletion, delta reads, atomic quota'
 });
 test('Redis sync: independent instances merge atomically and enforce the same bounds',{skip:!port},async()=>{
  const namespace=randomUUID();await exercise(new RedisAuthStore(evaluate,namespace),new RedisAuthStore(evaluate,namespace));
-});
-
-test('paged sync acknowledges writes and old conflicts without skipping unseen revisions',()=>{
- const rows=Object.fromEntries(Array.from({length:80},(_,i)=>['key'+i,{version:i+1,value:{text:'x'.repeat(15000)}}]));
- rows.old={version:1,value:null as any};rows.missing={version:0,value:null as any};
- const page=syncPage({revision:80,rows},{since:1,changes:[{key:'key79',base:0,value:{}},{key:'old',base:0,value:{}},{key:'missing',base:99,value:{}}]});
- assert.equal(page.more,true);assert.ok(page.revision<80);assert.ok(page.revision>1);
- assert.deepEqual(page.rows.key79,rows.key79);assert.deepEqual(page.rows.old,rows.old);assert.deepEqual(page.rows.missing,rows.missing);
- for(let revision=2;revision<=page.revision;revision++)assert.equal(page.rows['key'+(revision-1)].version,revision);
 });
