@@ -115,3 +115,42 @@ export { gestureAction, dispatchReaderAction } from '../vendor/moya-ui/src/featu
 import { ReaderGestureSettings } from '../vendor/moya-ui/src/features/reader-settings/ReaderGestureSettings';
 export function mountReaderGestures(node,bindings,update,ttsEnabled=true) { render(node,bindings?<ReaderGestureSettings bindings={bindings} update={update} ttsEnabled={ttsEnabled}/>:null); }
 export { continuousPageNearestViewportCenter } from '../vendor/moya-ui/src/features/fixed-document/continuous-scroll';
+
+// Use Moya's same end-of-chapter gesture policy for comics that scroll the window.
+import { useScrollChapterBoundary } from '../vendor/moya-ui/src/features/reader/use-scroll-chapter-boundary';
+import { isFixedDocumentInteractiveTarget } from '../vendor/moya-ui/src/features/fixed-document/fixed-document-input';
+function ComicScrollBoundary({ content, chapterId, title, ready, onNextChapter }) {
+  const rootRef = useRef(document.scrollingElement), contentRef = useRef(content);
+  const boundary = useScrollChapterBoundary({rootRef, contentRef, eventRootRef:contentRef, chapterId, enabled:ready, onNextChapter});
+  useEffect(() => {
+    const blocked = event => document.querySelector('dialog[open], [role="dialog"][aria-modal="true"]') || isFixedDocumentInteractiveTarget(event.target);
+    let startY;
+    const wheel = event => { if (!blocked(event)) boundary.onWheel(event); };
+    const down = event => {
+      if (!event.isPrimary || blocked(event)) return;
+      startY = event.clientY;
+      if (boundary.onPointerDown(event.clientY,event.pointerType)) content.setPointerCapture(event.pointerId);
+    };
+    const move = event => { if (boundary.onPointerMove(event.clientY,event.pointerType)) event.preventDefault(); };
+    const end = event => {
+      if (startY !== undefined) boundary.onVerticalGesture(startY-event.clientY,event.pointerType);
+      startY=undefined;boundary.onPointerEnd();
+    };
+    const cancel = () => { startY=undefined;boundary.onPointerEnd(); };
+    window.addEventListener('scroll',boundary.onScroll,{passive:true});
+    content.addEventListener('wheel',wheel,{passive:false});
+    content.addEventListener('pointerdown',down);content.addEventListener('pointermove',move);
+    content.addEventListener('pointerup',end);content.addEventListener('pointercancel',cancel);
+    return () => {
+      window.removeEventListener('scroll',boundary.onScroll);content.removeEventListener('wheel',wheel);
+      content.removeEventListener('pointerdown',down);content.removeEventListener('pointermove',move);
+      content.removeEventListener('pointerup',end);content.removeEventListener('pointercancel',cancel);
+    };
+  },[content,boundary.onScroll,boundary.onWheel,boundary.onPointerDown,boundary.onPointerMove,boundary.onVerticalGesture,boundary.onPointerEnd]);
+  return <div className={`reader-next-chapter-boundary${boundary.armed?' is-armed':''}`} data-scroll-chapter-boundary="true" data-scroll-chapter-boundary-armed={String(boundary.armed)} aria-live="polite">
+    <span>다음 화</span><strong>{title}</strong><small>{boundary.armed?'한 번 더 아래로 스크롤':'마지막까지 읽었습니다'}</small>
+  </div>;
+}
+export function mountComicScrollBoundary(node,options) {
+  render(node,options?<ComicScrollBoundary key={options.chapterId} {...options}/>:null);
+}

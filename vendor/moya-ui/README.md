@@ -37,3 +37,5 @@ browser build dependencies, not server runtime services.
 
 - `ReaderDeviceControls` reports rejected wake/orientation locks inline and releases
   device locks when the source reader unmounts.
+
+- `use-scroll-chapter-boundary.ts`: optional `eventRootRef` lets the comic adapter measure window scrolling while listening for touches only inside comic content. The original idle, wheel, touch and pull-feedback rules are shared with novels.

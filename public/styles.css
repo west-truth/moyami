@@ -408,3 +408,11 @@ body:not([data-auth="ready"]) #login { display:flex !important; }
 #inviteKey { width:100%; box-sizing:border-box; }
 .app-wordmark { background:none !important; width:auto; height:auto; font-weight:800; font-size:1.5rem; letter-spacing:-.06em; }
 .app-wordmark::after { content:'moyami'; }
+
+/* Moya's end-of-chapter pull feedback for the window-scrolling comic adapter. */
+.pages.reader-boundary-motion { transform:translate3d(0,calc(0px - var(--reader-boundary-pull,0px)),0); }
+.pages.reader-boundary-motion.is-wheel-pull { transition:transform 70ms cubic-bezier(.2,.75,.25,1); }
+.pages.reader-boundary-motion.is-touch-pull { transition:none; }
+.pages.reader-boundary-motion.is-boundary-release { transition:transform 160ms cubic-bezier(.22,.8,.25,1); }
+.pages.reader-boundary-motion.is-boundary-commit { transition:transform 100ms cubic-bezier(.2,.75,.25,1); }
+@media(prefers-reduced-motion:reduce) { .pages.reader-boundary-motion { transition:none;transform:none; } }

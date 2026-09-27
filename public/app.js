@@ -921,6 +921,7 @@ async function openReader(chapterUrl, chapterIndex = 0, targetAnchor) {
     show("reader");
     comicReader = createComicReader({ root: $("pages"), total: pages.length, initial: current,
       storageKey: `moya-comic-profile:${stateKey()}:${currentWork.url}`, chapterUrl,
+      nextChapterTitle: chapterIndex > 0 ? field(currentChapters[chapterIndex-1],["name","title"]) || "다음 화" : undefined,
       openChapter: step => {
         if (stateKey() !== chapterSourceKey || view !== 'reader' || activeChapter?.url !== chapterUrl) return;
         const index = chapterIndex - step, item = currentChapters[index];

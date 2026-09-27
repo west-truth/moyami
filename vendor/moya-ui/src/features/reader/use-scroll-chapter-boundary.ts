@@ -34,6 +34,8 @@ function pullOffset(delta: number, threshold: number): number {
 export function useScrollChapterBoundary(input: {
   readonly rootRef: RefObject<HTMLElement>;
   readonly contentRef: RefObject<HTMLElement>;
+  // Window-scrolling adapters measure the document but receive touches on reader content.
+  readonly eventRootRef?: RefObject<HTMLElement>;
   readonly chapterId: string;
   readonly enabled: boolean;
   readonly onNextChapter: () => void | Promise<void>;
@@ -337,7 +339,8 @@ export function useScrollChapterBoundary(input: {
   useEffect(() => {
     if (!input.enabled) return;
     const root = input.rootRef.current;
-    if (!root) return;
+    const eventRoot = input.eventRootRef?.current ?? root;
+    if (!root || !eventRoot) return;
 
     const resetTouch = () => {
       touchStartedArmedRef.current = false;
@@ -383,18 +386,18 @@ export function useScrollChapterBoundary(input: {
       releasePull();
     };
 
-    root.addEventListener('touchstart', onTouchStart, { passive: true });
-    root.addEventListener('touchmove', onTouchMove, { passive: false });
-    root.addEventListener('touchend', onTouchEnd, { passive: true });
-    root.addEventListener('touchcancel', onTouchCancel, { passive: true });
+    eventRoot.addEventListener('touchstart', onTouchStart, { passive: true });
+    eventRoot.addEventListener('touchmove', onTouchMove, { passive: false });
+    eventRoot.addEventListener('touchend', onTouchEnd, { passive: true });
+    eventRoot.addEventListener('touchcancel', onTouchCancel, { passive: true });
     return () => {
-      root.removeEventListener('touchstart', onTouchStart);
-      root.removeEventListener('touchmove', onTouchMove);
-      root.removeEventListener('touchend', onTouchEnd);
-      root.removeEventListener('touchcancel', onTouchCancel);
+      eventRoot.removeEventListener('touchstart', onTouchStart);
+      eventRoot.removeEventListener('touchmove', onTouchMove);
+      eventRoot.removeEventListener('touchend', onTouchEnd);
+      eventRoot.removeEventListener('touchcancel', onTouchCancel);
       resetTouch();
     };
-  }, [commitNextChapter, input.enabled, input.rootRef, releasePull, scheduleArm, setPullMotion]);
+  }, [commitNextChapter, input.enabled, input.rootRef, input.eventRootRef, releasePull, scheduleArm, setPullMotion]);
 
   return { armed, onScroll, onWheel, onPointerDown, onPointerMove, onPointerEnd, onVerticalGesture };
 }

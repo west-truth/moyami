@@ -922,6 +922,40 @@ try {
     await page.keyboard.press('Escape');
     assert.equal(await page.evaluate(()=>JSON.parse(localStorage.getItem('moya-source-selection')).repositoryUrl),other);
   });
+  for (const mode of ['continuous','continuous-seamless','novel-scroll']) await check(`scroll chapter boundary: ${mode} requires a fresh wheel or touch gesture`, async context => {
+    const novel=mode==='novel-scroll';fixtureItemType=novel?2:0;fixturePageCount=3;generation=2;
+    const page=await ready(context);await page.setViewportSize({width:390,height:844});
+    await page.evaluate(({mode,novel})=>localStorage.setItem(novel?'moya-novel-settings':'moya-comic-settings',JSON.stringify(novel?{modeLock:'scroll'}:{mode:'vertical',seamlessVertical:mode==='continuous-seamless'})),{mode,novel});
+    await page.route('**/fixture/image?*',route=>route.fulfill({contentType:'image/svg+xml',body:'<svg xmlns="http://www.w3.org/2000/svg" width="600" height="900"><rect width="600" height="900" fill="#468"/></svg>'}));
+    await page.locator('#works .card').first().click();await page.locator('#continueReading').click();
+    const title=async n=>{await page.waitForFunction(n=>document.getElementById('readerChapterTitle').textContent==='Chapter '+n,n,{timeout:12000});if(n<25)await page.locator(selector+' strong').filter({hasText:'Chapter '+(n+1)}).waitFor();else await page.locator(selector).waitFor({state:'detached'});};
+    const waitReader=async()=>{if(novel)await page.locator('#novelText .reader-scroll[aria-busy=false]').waitFor();else await page.waitForFunction(count=>document.querySelectorAll('#pages .page').length===count&&[...document.querySelectorAll('#pages .page')].every(row=>row.dataset.loaded==='true'),fixturePageCount);};
+    const selector=novel?'#novelText .is-active [data-scroll-chapter-boundary]':'#pages [data-scroll-chapter-boundary]';
+    const bottom=async()=>{await waitReader();await page.evaluate(novel=>{document.activeElement?.blur();dispatchEvent(new Event('wheel'));if(novel){const root=document.querySelector('#novelText .reader-scroll');root.scrollTop=root.scrollHeight;}else scrollTo(0,document.scrollingElement.scrollHeight);},novel);};
+    const armed=()=>page.locator(selector+'[data-scroll-chapter-boundary-armed=true]').waitFor();
+    const point=async()=>{const r=await page.locator(selector).boundingBox();return {x:r.x+r.width/2,y:Math.max(120,Math.min(600,r.y+20))};};
+    await title(1);await bottom();await armed();assert.equal(await page.locator('#readerChapterTitle').textContent(),'Chapter 1','reaching the end must not advance');
+    // Continuous momentum postpones readiness; only a later gesture crosses the boundary.
+    await page.evaluate(novel=>{const root=novel?document.querySelector('#novelText .reader-scroll'):document.getElementById('pages');root.dispatchEvent(new WheelEvent('wheel',{deltaY:-80,bubbles:true,cancelable:true}));for(let i=0;i<4;i++)root.dispatchEvent(new WheelEvent('wheel',{deltaY:120,bubbles:true,cancelable:true}));},novel);
+    assert.equal(await page.locator(selector).getAttribute('data-scroll-chapter-boundary-armed'),'false');
+    await armed();assert.equal(await page.locator('#readerChapterTitle').textContent(),'Chapter 1');
+    let p=await point();await page.mouse.move(p.x,p.y);await page.mouse.wheel(0,120);await title(2);await waitReader();await page.evaluate(()=>new Promise(resolve=>requestAnimationFrame(()=>requestAnimationFrame(resolve))));
+    assert.ok(Number(await page.locator(novel?'#novelSeek':'#readerPage').inputValue())<=(novel?20:1),'next chapter starts at the beginning');
+    await bottom();await armed();
+    const cdp=await context.newCDPSession(page);
+    const pull=async(distance,cancel=false)=>{p=await point();await cdp.send('Input.dispatchTouchEvent',{type:'touchStart',touchPoints:[p]});await cdp.send('Input.dispatchTouchEvent',{type:'touchMove',touchPoints:[{x:p.x,y:p.y-distance}]});await cdp.send('Input.dispatchTouchEvent',{type:cancel?'touchCancel':'touchEnd',touchPoints:[]});};
+    await pull(100,true);await page.waitForTimeout(150);assert.equal(await page.locator('#readerChapterTitle').textContent(),'Chapter 2','cancelled touch does not navigate');
+    await bottom();await armed();await pull(20);await page.waitForTimeout(150);assert.equal(await page.locator('#readerChapterTitle').textContent(),'Chapter 2','small touch does not navigate');
+    await armed();await pull(100);await title(3);await waitReader();
+    // Leaving during Moya's 100ms pull animation must cancel the queued navigation.
+    await bottom();await armed();
+    await page.evaluate(novel=>{const root=novel?document.querySelector('#novelText .reader-scroll'):document.getElementById('pages');root.dispatchEvent(new WheelEvent('wheel',{deltaY:120,bubbles:true,cancelable:true}));document.getElementById('back').click();},novel);
+    await page.locator('#detail').waitFor();await page.waitForTimeout(200);
+    assert.equal(await page.locator('#reader').isVisible(),false);
+    assert.equal(await page.locator('#readerChapterTitle').textContent(),'Chapter 3');
+    await page.getByLabel('회차 정렬',{exact:true}).selectOption('desc');await page.locator('#chapters .chapter').first().click();await title(25);await waitReader();
+    assert.equal(await page.locator(selector).count(),0,'last chapter has no next-chapter gesture');
+  });
   await check('comic page edges cross chapters by keys, touch and swipe; exit returns to detail', async context => {
     fixturePageCount=3;generation=2;
     const page=await ready(context);await page.setViewportSize({width:390,height:844});

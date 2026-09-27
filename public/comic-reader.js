@@ -1,6 +1,6 @@
 import { localStorage, indexedDB } from "/account-storage.js";
 import {
-  DEFAULT_COMIC_READING_PROFILE, buildComicSpreads, comicSpreadForPage, comicSpreadPages,
+  mountComicScrollBoundary, DEFAULT_COMIC_READING_PROFILE, buildComicSpreads, comicSpreadForPage, comicSpreadPages,
   fixedDocumentTapStep, handleFixedDocumentKeyDown, isFixedDocumentInteractiveTarget,
   parseFixedDocumentPageDraft, mountSliders, detectComicContentBounds, captureViewportFocalAnchor, focalAnchorScrollDelta, continuousPageNearestViewportCenter, mountReaderGestures, DEFAULT_GESTURE_BINDINGS, gestureAction, dispatchReaderAction,
 } from '/moya-ui.js';
@@ -11,7 +11,7 @@ const clamp = (n, low, high) => Math.max(low, Math.min(high, n));
 
 // Source images stay in the connector's bounded cache. This adapter supplies Moya's
 // layout and input algorithms with page dimensions instead of an imported archive.
-export function createComicReader({ root, total, initial, storageKey, chapterUrl, changed, openChapter }) {
+export function createComicReader({ root, total, initial, storageKey, chapterUrl, changed, openChapter, nextChapterTitle }) {
   let saved;
   try { saved = JSON.parse(localStorage.getItem('moya-comic-settings') || localStorage.getItem(storageKey) || '{}'); } catch { saved = {}; }
   if (!saved || typeof saved !== "object" || Array.isArray(saved)) saved = {};
@@ -25,6 +25,8 @@ export function createComicReader({ root, total, initial, storageKey, chapterUrl
   const crops=new WeakMap();
   let frame, pinch, pointers=new Map();
   const rows = [...root.querySelectorAll('.page')], hints = new Map();
+  const boundaryHost = document.createElement('div');
+  boundaryHost.hidden = true;root.append(boundaryHost);
   let current = clamp(initial, 1, total), zoom = clamp(Number(saved.zoom) || 1, .5, 3), disposed = false, pointer, previousMode;
   const bookmarkKey = `${storageKey}:marks:${chapterUrl}`;
   let bookmarks = [];
@@ -122,6 +124,12 @@ export function createComicReader({ root, total, initial, storageKey, chapterUrl
     $('readerSeek').setAttribute('aria-valuetext', `${current} / ${total} 페이지 (${Math.round(current / total * 100)}%)`);
     $('readerZoom').textContent = `${Math.round(zoom * 100)}%`;
     updateMarks(); sizeImages(); changed(current);
+    boundaryHost.hidden = paged() || !nextChapterTitle;
+    mountComicScrollBoundary(boundaryHost, boundaryHost.hidden ? null : {
+      content:root,chapterId:chapterUrl,title:nextChapterTitle,
+      ready:rows.every(row=>row.dataset.loaded==='true'&&!row.classList.contains('errorPage')),
+      onNextChapter:()=>openAdjacentChapter(1),
+    });
     if (previousMode !== mode) {
       previousMode = mode;
       queueMicrotask(() => { if (!disposed) dispatchEvent(new Event('moya-reader-layout')); });
@@ -133,16 +141,18 @@ export function createComicReader({ root, total, initial, storageKey, chapterUrl
     if (!paged() && scroll) rows[current - 1]?.scrollIntoView({ block: 'start' });
   }
   let chapterOpening = false;
+  async function openAdjacentChapter(step) {
+    if(disposed || chapterOpening || !openChapter || document.querySelector('dialog[open], [role="dialog"][aria-modal="true"]'))return;
+    chapterOpening = true;
+    try { await openChapter(step); } finally { chapterOpening = false; }
+  }
   function turn(step, allowChapter = true) {
     if (disposed || chapterOpening) return;
     const all = mode === 'spread' ? spreads() : undefined;
     const index = all ? comicSpreadForPage(all,current-1) : current-1;
     const target = index + step, count = all?.length ?? total;
     if (paged() && (target < 0 || target >= count)) {
-      if (allowChapter && openChapter) {
-        chapterOpening = true;
-        void Promise.resolve(openChapter(step)).finally(() => { chapterOpening = false; });
-      }
+      if (allowChapter) void openAdjacentChapter(step);
       return;
     }
     if (mode === 'spread') {
@@ -265,7 +275,7 @@ export function createComicReader({ root, total, initial, storageKey, chapterUrl
     go, refresh: render, observePage: continuousPosition,
     imageLoaded(index, image) { rows[index].dataset.loaded = 'true'; if (image.naturalWidth > image.naturalHeight * 1.2) hints.set(index, {doublePage:true}); render(); },
     dispose() {
-      disposed = true;mountReaderGestures($('readerGestures'),null);cancelAnimationFrame(frame);removeEventListener('scroll',scroll);dialog.close();closeThumbnails();dialog.removeEventListener('close',closeThumbnails);root.removeEventListener('pointermove',move);root.removeEventListener('wheel',wheel); chromeObserver.disconnect();
+      disposed = true;mountComicScrollBoundary(boundaryHost,null);boundaryHost.remove();mountReaderGestures($('readerGestures'),null);cancelAnimationFrame(frame);removeEventListener('scroll',scroll);dialog.close();closeThumbnails();dialog.removeEventListener('close',closeThumbnails);root.removeEventListener('pointermove',move);root.removeEventListener('wheel',wheel); chromeObserver.disconnect();
       removeEventListener('keydown', keydown); removeEventListener('resize', sizeImages);
       window.visualViewport?.removeEventListener('resize', sizeImages);
       window.visualViewport?.removeEventListener('scroll', sizeImages);
