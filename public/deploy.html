@@ -5,27 +5,33 @@
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <meta name="referrer" content="no-referrer">
 <meta name="color-scheme" content="light dark">
-<title>moyami · 내 리더 만들기</title>
+<meta name="description" content="moyami 배포 가이드: 가입 키를 만들고 Vercel 무료 요금제에 나만의 만화·소설 리더를 배포합니다.">
+<title>moyami 배포 가이드</title>
 <style>
-:root{--bg:#f4f2ed;--panel:#fbfaf7;--line:#d9d6ce;--text:#23262b;--muted:#6d7279;--accent:#3766df;--accent-soft:#e1e8fb;--ok:#2f7a57;--field:#fff;font:16px/1.65 system-ui,-apple-system,"Apple SD Gothic Neo","Noto Sans KR",sans-serif;background:var(--bg);color:var(--text)}
-@media (prefers-color-scheme:dark){:root{--bg:#141619;--panel:#1c1f23;--line:#353941;--text:#e6e8eb;--muted:#9aa0a8;--accent:#8fb0ff;--accent-soft:#223052;--ok:#6fcf9f;--field:#23272c}}
+:root{--bg:#f4f2ed;--panel:#fbfaf7;--line:#d9d6ce;--text:#23262b;--muted:#6d7279;--accent:#3766df;--accent-soft:#e1e8fb;--ok:#2f7a57;--star:#b7791f;--field:#fff;font:16px/1.65 system-ui,-apple-system,"Apple SD Gothic Neo","Noto Sans KR",sans-serif;background:var(--bg);color:var(--text)}
+@media (prefers-color-scheme:dark){:root{--bg:#141619;--panel:#1c1f23;--line:#353941;--text:#e6e8eb;--muted:#9aa0a8;--accent:#8fb0ff;--accent-soft:#223052;--ok:#6fcf9f;--star:#f2c14e;--field:#23272c}}
 *{box-sizing:border-box}
-body{max-width:720px;margin:0 auto;padding:40px 20px 64px}
+body{max-width:720px;margin:0 auto;padding:20px 20px 64px}
+nav{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:28px}
+nav .brand{font-weight:800;font-size:1.2rem;letter-spacing:-.05em;color:var(--text);text-decoration:none}
+nav .links{display:flex;flex-wrap:wrap;gap:8px}
+nav .links a{display:inline-flex;align-items:center;gap:6px;min-height:36px;padding:0 12px;border:1px solid var(--line);border-radius:999px;color:var(--text);font-size:.88rem;text-decoration:none}
+nav .links a:hover{border-color:var(--accent)}
 h1{margin:0 0 6px;font-size:1.9rem;letter-spacing:-.05em}
 h2{margin:0;font-size:1.15rem;letter-spacing:-.02em}
-h3{margin:28px 0 8px;font-size:1rem}
+h3{margin:24px 0 8px;font-size:1rem}
 p{margin:10px 0}
 a{color:var(--accent)}
 code{padding:1px 6px;border-radius:5px;background:var(--accent-soft);font-size:.9em;overflow-wrap:anywhere}
 .lead{color:var(--muted)}
-.summary{display:flex;flex-wrap:wrap;gap:8px;margin:18px 0 8px;padding:0;list-style:none;font-size:.9rem}
-.summary li{padding:4px 12px;border:1px solid var(--line);border-radius:999px;color:var(--muted)}
+.summary{display:flex;flex-wrap:wrap;gap:8px;margin:16px 0 4px;padding:0;list-style:none;font-size:.9rem}
+.summary li{margin:0;padding:4px 12px;border:1px solid var(--line);border-radius:999px;color:var(--muted)}
 .step{position:relative;margin:18px 0;padding:22px 22px 22px 70px;border:1px solid var(--line);border-radius:16px;background:var(--panel)}
 .step::before{content:attr(data-step);position:absolute;left:20px;top:20px;display:grid;place-items:center;width:34px;height:34px;border-radius:50%;background:var(--accent-soft);color:var(--accent);font-weight:700}
 .step.done::before{content:'✓';background:var(--ok);color:var(--panel)}
-.step .hint{color:var(--muted);font-size:.9rem}
+.hint{color:var(--muted);font-size:.9rem}
 .row{display:flex;flex-wrap:wrap;gap:8px;margin-top:14px}
-button,.action{white-space:nowrap;display:inline-flex;align-items:center;justify-content:center;min-height:44px;padding:0 18px;border:1px solid var(--line);border-radius:10px;background:var(--field);color:var(--text);font:inherit;text-decoration:none;cursor:pointer}
+button,.action{display:inline-flex;align-items:center;justify-content:center;gap:6px;min-height:44px;padding:0 18px;border:1px solid var(--line);border-radius:10px;background:var(--field);color:var(--text);font:inherit;white-space:nowrap;text-decoration:none;cursor:pointer}
 button.primary,.action.primary{border-color:var(--accent);background:var(--accent);color:var(--panel);font-weight:650}
 button:disabled{opacity:.45;cursor:not-allowed}
 .action.waiting{opacity:.55}
@@ -34,118 +40,138 @@ input{width:100%;min-height:44px;padding:10px 12px;border:1px solid var(--line);
 #key{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:.9rem}
 #status{min-height:1.6em;margin:10px 0 0;color:var(--ok);font-weight:600}
 .fields{margin:14px 0 0;padding:0;list-style:none;border:1px solid var(--line);border-radius:12px;overflow:hidden}
-.fields li{display:grid;grid-template-columns:140px 1fr;gap:12px;padding:10px 14px;border-top:1px solid var(--line);font-size:.92rem}
+.fields li{display:grid;grid-template-columns:140px 1fr;gap:12px;margin:0;padding:10px 14px;border-top:1px solid var(--line);font-size:.92rem}
 .fields li:first-child{border-top:0}
 .fields b{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:.85rem;font-weight:600}
-ol{padding-left:22px}
+ol,ul{padding-left:22px}
 li{margin:6px 0}
+.star{margin:18px 0;padding:22px;border:1px solid var(--line);border-radius:16px;background:linear-gradient(135deg,var(--panel),var(--accent-soft))}
+.star h2::before{content:'★ ';color:var(--star)}
+.star .action{flex:1 1 220px}
+.star .action span{opacity:.75;font-weight:400;font-size:.85rem}
+.faq{margin-top:40px}
 details{margin:12px 0;padding:14px 18px;border:1px solid var(--line);border-radius:12px;background:var(--panel)}
-details[open]{padding-bottom:18px}
 summary{cursor:pointer;font-weight:650}
-footer{margin-top:40px;color:var(--muted);font-size:.85rem}
-@media (max-width:520px){body{padding-top:28px}.step{padding:62px 16px 18px}.step::before{left:16px;top:16px}.fields li{grid-template-columns:1fr;gap:2px}button,.action{flex:1}.row .primary{flex-basis:100%}}
+footer{margin-top:40px;padding-top:20px;border-top:1px solid var(--line);color:var(--muted);font-size:.85rem}
+@media (max-width:520px){.step{padding:62px 16px 18px}.step::before{left:16px;top:16px}.fields li{grid-template-columns:1fr;gap:2px}button,.action{flex:1}.row .primary{flex-basis:100%}}
 </style>
 </head>
 <body>
-<h1>moyami · 내 리더 만들기</h1>
-<p class="lead">확장 소스로 만화와 소설을 읽는 나만의 웹 리더를 Vercel 무료 요금제에 만듭니다. 이 화면의 세 단계만 따라 하면 됩니다.</p>
-<ul class="summary" aria-label="준비물"><li>GitHub 계정</li><li>Vercel 계정 (GitHub로 가입 가능)</li><li>약 5분</li></ul>
+<nav aria-label="프로젝트 링크">
+  <a class="brand" href="https://github.com/west-truth/moyami" target="_blank" rel="noopener noreferrer">moyami</a>
+  <div class="links">
+    <a href="https://github.com/west-truth/moyami" target="_blank" rel="noopener noreferrer">★ GitHub</a>
+    <a href="https://github.com/west-truth/moya-reader" target="_blank" rel="noopener noreferrer">Moya Reader</a>
+  </div>
+</nav>
+
+<h1>나만의 만화·소설 리더 만들기</h1>
+<p class="lead">moyami는 확장 소스로 만화와 소설을 읽는 개인용 웹 리더입니다. 아래 세 단계를 따라 하면 Vercel 무료 요금제에 내 리더가 만들어집니다.</p>
+<ul class="summary" aria-label="준비물"><li>GitHub 계정</li><li>Vercel 계정 (GitHub로 가입)</li><li>약 5분</li></ul>
 
 <section class="step" id="step-key" data-step="1">
   <h2>가입 키 만들기</h2>
   <p>내 리더에 처음 가입할 때 쓰는 비밀 키입니다. 이 브라우저 안에서만 만들어지고 어디에도 전송되지 않습니다.</p>
   <div class="row"><button id="generate" class="primary">가입 키 생성</button><button id="copy" disabled>다시 복사</button><button id="download" disabled>파일로 보관</button></div>
-  <label>BOOTSTRAP_KEY<input id="key" readonly placeholder="가입 키 생성 버튼을 누르세요" aria-describedby="status"></label>
+  <label>BOOTSTRAP_KEY<input id="key" readonly placeholder="가입 키 생성을 누르세요" aria-describedby="status"></label>
   <p id="status" role="status"></p>
-  <p class="hint">키는 자동으로 저장되지 않습니다. 이 창을 닫기 전에 <strong>파일로 보관</strong>하거나 메모해 두세요. 2단계와 3단계에서 같은 키를 두 번 씁니다.</p>
+  <p class="hint">키는 자동으로 저장되지 않으니 <strong>파일로 보관</strong>해 두세요. 2단계와 3단계에서 같은 키를 씁니다.</p>
 </section>
 
 <section class="step" id="step-deploy" data-step="2">
   <h2>Vercel에 배포하기</h2>
-  <label>앱 표시 이름 (나중에 바꿀 수 있어요)<input id="site" value="moyami" maxlength="80"></label>
+  <label>앱 이름 (나중에 바꿀 수 있어요)<input id="site" value="moyami" maxlength="80"></label>
   <div class="row"><a id="deploy" class="action primary waiting" target="_blank" rel="noopener noreferrer">Vercel 배포 시작 ↗</a></div>
   <p class="hint" id="deployHint">먼저 1단계에서 가입 키를 만들어 주세요.</p>
-  <h3>새 창에서 이렇게 진행하세요</h3>
+  <h3>새 창에서 할 일</h3>
   <ol>
-    <li><strong>GitHub로 로그인</strong>하고 저장소 이름을 정한 뒤 <strong>Create</strong>를 누릅니다. 이름은 자유롭게 정해도 됩니다.</li>
-    <li><strong>Upstash</strong> 저장 공간 연결 화면이 나오면 새로 만들고, 요금제는 <strong>Free</strong>를 고릅니다. 로그인 계정과 읽기 기록을 보관하는 작은 저장 공간입니다.</li>
-    <li>환경변수 입력 칸을 아래처럼 채우고 <strong>Deploy</strong>를 누릅니다.</li>
+    <li><strong>GitHub로 로그인</strong>하고, 저장소 이름을 정한 뒤 <strong>Create</strong>를 누릅니다.</li>
+    <li><strong>Upstash</strong> 저장 공간을 새로 만들고 요금제는 <strong>Free</strong>를 고릅니다. 계정과 읽기 기록을 보관하는 곳입니다.</li>
+    <li>환경변수를 아래처럼 채우고 <strong>Deploy</strong>를 누릅니다.</li>
   </ol>
   <ul class="fields" aria-label="입력할 환경변수">
     <li><b>BOOTSTRAP_KEY</b><span>1단계에서 복사한 키를 붙여 넣기</span></li>
-    <li><b>SITE_NAME</b><span>위에 적은 앱 이름이 자동으로 들어가 있어요</span></li>
+    <li><b>SITE_NAME</b><span>위에 적은 앱 이름이 미리 들어가 있어요</span></li>
   </ul>
-  <p class="hint">계정 연결과 외부 서비스 약관 동의는 직접 진행해야 합니다. 배포가 끝나면 <strong>Continue to Dashboard</strong> 또는 앱 미리보기를 눌러 내 앱 주소(<code>이름.vercel.app</code>)를 엽니다.</p>
+  <p class="hint">계정 연결과 약관 동의는 직접 진행해야 합니다. 배포가 끝나면 앱 미리보기를 눌러 내 앱 주소(<code>이름.vercel.app</code>)를 엽니다.</p>
 </section>
 
 <section class="step" id="step-signup" data-step="3">
-  <h2>관리자로 가입하고 읽기 시작</h2>
+  <h2>가입하고 읽기 시작</h2>
   <ol>
     <li>내 앱 주소를 열면 <strong>관리자 계정 만들기</strong> 화면이 나옵니다.</li>
     <li>1단계의 가입 키와 원하는 아이디·비밀번호(10자 이상)를 입력합니다. 다음부터는 아이디·비밀번호만 씁니다.</li>
-    <li><strong>설정 → 확장 소스 → 저장소 → 저장소 추가</strong>에 사용할 Mangayomi JS 저장소 주소를 넣고, 소스를 고릅니다. 기본으로 들어 있는 저장소는 없습니다.</li>
+    <li><strong>설정 → 확장 소스 → 저장소 → 저장소 추가</strong>에 쓸 Mangayomi JS 저장소 주소를 넣고 소스를 고릅니다.</li>
   </ol>
-  <p class="hint">휴대폰에서는 브라우저 메뉴의 <strong>홈 화면에 추가</strong>로 앱처럼 쓸 수 있습니다. 다른 사람을 초대하려면 <strong>설정 → 계정 → 가입 키 발급</strong>을 쓰세요.</p>
+  <p class="hint">휴대폰에서는 브라우저 메뉴의 <strong>홈 화면에 추가</strong>로 앱처럼 쓸 수 있습니다. 다른 사람은 <strong>설정 → 계정 → 가입 키 발급</strong>으로 초대합니다.</p>
 </section>
 
-<h2 style="margin-top:40px">막혔을 때</h2>
+<section class="star" aria-labelledby="starTitle">
+  <h2 id="starTitle">잘 만들어졌나요?</h2>
+  <p>GitHub에서 Star를 눌러 주시면 프로젝트를 이어 가는 데 큰 힘이 됩니다. moyami의 바탕이 된 Moya Reader도 함께 둘러보세요.</p>
+  <div class="row">
+    <a class="action primary" id="starMoyami" href="https://github.com/west-truth/moyami" target="_blank" rel="noopener noreferrer">★ moyami에 Star</a>
+    <a class="action" id="starMoyaReader" href="https://github.com/west-truth/moya-reader" target="_blank" rel="noopener noreferrer">★ Moya Reader <span>텍스트·만화 뷰어</span></a>
+  </div>
+</section>
+
+<section class="faq" aria-labelledby="faqTitle">
+<h2 id="faqTitle">막혔을 때</h2>
 
 <details id="storage-help">
   <summary>“저장 공간 연결이 필요합니다”라고 나와요</summary>
-  <p>앱은 만들어졌지만 계정과 읽기 기록을 보관할 곳이 아직 연결되지 않았다는 뜻입니다.</p>
+  <p>계정과 읽기 기록을 보관할 Upstash Redis가 아직 연결되지 않은 상태입니다.</p>
   <ol>
     <li><a href="https://vercel.com/dashboard" target="_blank" rel="noopener noreferrer">Vercel 대시보드</a>에서 내 moyami 프로젝트를 엽니다.</li>
-    <li><strong>Storage → Create Database</strong>에서 <strong>Upstash → Redis</strong>를 고르고, Free 요금제로 새 저장 공간을 만듭니다.</li>
-    <li><strong>Connect to Project</strong>에서 내 프로젝트를 고릅니다. 환경을 묻는다면 <strong>Production</strong>을 선택합니다.</li>
+    <li><strong>Storage → Create Database</strong>에서 <strong>Upstash → Redis</strong>를 고르고 <strong>Free</strong> 요금제로 만듭니다.</li>
+    <li><strong>Connect to Project</strong>에서 내 프로젝트를, 환경은 <strong>Production</strong>을 고릅니다.</li>
     <li><strong>Deployments</strong>에서 가장 최근 배포의 <strong>⋯ → Redeploy</strong>를 누릅니다.</li>
-    <li>끝나면 내 앱을 새로고침합니다. 가입 화면이 보이면 연결된 것입니다.</li>
+    <li>끝나면 앱을 새로고침합니다. 가입 화면이 보이면 완료입니다.</li>
   </ol>
-  <p class="hint">주소와 토큰은 연결할 때 Vercel이 자동으로 넣어 줍니다. 직접 복사할 필요가 없습니다.</p>
+  <p class="hint">주소와 토큰은 Vercel이 자동으로 넣어 줍니다. 직접 복사할 필요가 없습니다.</p>
 </details>
 
 <details id="key-help">
   <summary>“첫 가입 키가 설정되지 않았습니다”라고 나와요</summary>
   <p>배포할 때 <code>BOOTSTRAP_KEY</code>를 넣지 않았거나 32자보다 짧습니다.</p>
   <ol>
-    <li>이 화면 1단계에서 키를 만들고 보관합니다.</li>
-    <li>Vercel 프로젝트의 <strong>Settings → Environment Variables</strong>에서 이름 <code>BOOTSTRAP_KEY</code>, 값에 키를 넣고 저장합니다.</li>
-    <li><strong>Deployments → ⋯ → Redeploy</strong>를 누른 뒤 앱을 새로고침합니다.</li>
+    <li>이 페이지 1단계에서 키를 만들고 보관합니다.</li>
+    <li>Vercel 프로젝트의 <strong>Settings → Environment Variables</strong>에 이름 <code>BOOTSTRAP_KEY</code>로 키를 추가합니다.</li>
+    <li><strong>Deployments → ⋯ → Redeploy</strong>를 누르고 앱을 새로고침합니다.</li>
   </ol>
 </details>
 
 <details id="update-help">
-  <summary>새 버전을 배포했는데 예전 화면이 계속 보여요</summary>
-  <p>moyami는 설치형 앱(PWA)이라 화면 파일을 기기에 보관합니다. 새 버전은 <strong>이 앱의 탭과 창을 모두 닫았다가 다시 열 때</strong> 적용됩니다. 새로고침만으로는 바뀌지 않습니다.</p>
-  <ol>
-    <li>이 앱을 연 브라우저 탭과 설치한 앱 창을 모두 닫습니다. 휴대폰은 최근 앱 목록에서도 밀어서 닫습니다.</li>
-    <li>다시 엽니다. 한 번에 안 바뀌면 한 번 더 닫았다 엽니다.</li>
-  </ol>
-  <p>그래도 안 되면 사이트 데이터를 지웁니다. <strong>이 기기에 남은 기록과 설정도 함께 지워지지만</strong>, 동기화된 읽기 기록은 다시 로그인하면 돌아옵니다.</p>
+  <summary>새 버전을 배포했는데 예전 화면이 보여요</summary>
+  <p>moyami는 설치형 앱이라 화면 파일을 기기에 보관하고, <strong>앱의 탭과 창을 모두 닫았다가 다시 열 때</strong> 새 버전으로 바꿉니다. 새로고침만으로는 바뀌지 않습니다. 휴대폰은 최근 앱 목록에서도 닫아 주세요.</p>
+  <p>그래도 안 되면 사이트 데이터를 지웁니다. 이 기기에만 있던 설정은 사라지지만, 동기화된 읽기 기록은 다시 로그인하면 돌아옵니다.</p>
   <ul>
-    <li><strong>PC Chrome·Edge:</strong> 앱을 열고 F12 → Application → Storage → <strong>Clear site data</strong> → 새로고침</li>
-    <li><strong>Android Chrome:</strong> 설정 → 사이트 설정 → 모든 사이트 → 내 앱 주소 → 삭제</li>
-    <li><strong>iPhone·iPad:</strong> 설정 → Safari → 고급 → 웹사이트 데이터 → 내 앱 주소 검색 → 삭제. 홈 화면 앱은 아이콘을 지우고 다시 추가합니다.</li>
+    <li><strong>PC Chrome·Edge</strong> — F12 → Application → Storage → <strong>Clear site data</strong> → 새로고침</li>
+    <li><strong>Android Chrome</strong> — 설정 → 사이트 설정 → 모든 사이트 → 내 앱 주소 → 삭제</li>
+    <li><strong>iPhone·iPad</strong> — 설정 → Safari → 고급 → 웹사이트 데이터 → 내 앱 주소 → 삭제. 홈 화면 앱은 지우고 다시 추가</li>
   </ul>
 </details>
 
 <details id="migrate-help">
-  <summary>예전 접근 키 방식(moya-source-lite)에서 옮겨 왔어요</summary>
-  <p>같은 Vercel 프로젝트에 moyami를 배포하면 접근 키 대신 계정 로그인으로 바뀝니다.</p>
+  <summary>예전 접근 키 방식에서 옮겨 왔어요</summary>
+  <p>예전 moya-source-lite를 쓰던 Vercel 프로젝트에 그대로 moyami를 배포할 수 있습니다. 주소와 Upstash 연결은 그대로 씁니다.</p>
   <ol>
-    <li><strong>Environment Variables</strong>에 <code>BOOTSTRAP_KEY</code>(1단계에서 생성)와 <code>SITE_NAME</code>을 추가합니다.</li>
-    <li>더 이상 쓰지 않는 <code>APP_ACCESS_KEY</code>는 지워도 됩니다. <code>APP_SECRET</code>은 moyami도 로그인 서명에 쓰므로 그대로 둡니다.</li>
-    <li>다시 배포한 뒤 위 “예전 화면이 계속 보여요” 방법으로 기기의 예전 화면을 정리합니다.</li>
-    <li>관리자 계정을 만들고 저장소를 다시 추가합니다. 예전 기록은 계정 없이 저장된 것이라 새 계정으로 옮겨지지 않습니다.</li>
+    <li><strong>Environment Variables</strong>에 <code>BOOTSTRAP_KEY</code>와 <code>SITE_NAME</code>을 추가합니다.</li>
+    <li><code>APP_ACCESS_KEY</code>는 지워도 됩니다. <code>APP_SECRET</code>은 로그인에 계속 쓰이므로 그대로 둡니다.</li>
+    <li>다시 배포하고, 각 기기에서 위의 “예전 화면이 보여요” 방법으로 정리합니다.</li>
+    <li>관리자 계정을 만들고 저장소를 다시 추가합니다. 예전 기록은 새 계정으로 옮겨지지 않습니다.</li>
   </ol>
 </details>
 
 <details id="domain-help">
-  <summary>주소나 앱 이름을 바꾸고 싶어요</summary>
-  <p>앱 이름은 <code>SITE_NAME</code> 환경변수를 바꾸고 다시 배포하면 됩니다. 개인 도메인은 Vercel 프로젝트의 <strong>Settings → Domains</strong>에서 연결합니다. 브라우저 연결 확장을 쓴다면 <code>APP_URL=https://내-도메인</code>을 추가해 다시 배포하고 확장을 다시 설치하세요.</p>
+  <summary>앱 이름이나 주소를 바꾸고 싶어요</summary>
+  <p>앱 이름은 <code>SITE_NAME</code>을 바꾸고 다시 배포하면 됩니다. 개인 도메인은 Vercel <strong>Settings → Domains</strong>에서 연결합니다. 브라우저 연결 확장을 쓴다면 <code>APP_URL=https://내-도메인</code>도 추가해 다시 배포하고 확장을 다시 설치하세요.</p>
 </details>
+</section>
 
 <footer>
-  <p>키와 입력한 값은 이 페이지 밖으로 전송되지 않습니다. 자세한 설명은 <a href="https://github.com/west-truth/moyami#readme" target="_blank" rel="noopener noreferrer">moyami README</a>를 참고하세요.</p>
+  <p>이 페이지에서 만든 키와 입력한 값은 페이지 밖으로 전송되지 않습니다.</p>
+  <p>자세한 설명은 <a href="https://github.com/west-truth/moyami#readme" target="_blank" rel="noopener noreferrer">moyami README</a>를, 원본 리더는 <a href="https://github.com/west-truth/moya-reader" target="_blank" rel="noopener noreferrer">Moya Reader</a>를 참고하세요.</p>
 </footer>
 
 <script>
@@ -170,7 +196,7 @@ $('generate').onclick = async () => {
   $('copy').disabled = false; $('download').disabled = false;
   $('step-key').classList.add('done');
   $('deploy').classList.remove('waiting');
-  $('deployHint').textContent = '가입 키가 클립보드에 있어요. 새 창의 BOOTSTRAP_KEY 칸에 붙여 넣으면 됩니다.';
+  $('deployHint').textContent = '가입 키가 복사되어 있어요. 새 창의 BOOTSTRAP_KEY 칸에 붙여 넣으면 됩니다.';
   await copyKey('키를 만들고 복사했습니다. 파일로도 보관해 두세요.');
 };
 $('copy').onclick = () => copyKey('다시 복사했습니다.');
@@ -183,11 +209,11 @@ $('download').onclick = () => {
 };
 $('deploy').addEventListener('click', event => {
   if ($('key').value) { $('step-deploy').classList.add('done'); return; }
-  if (!confirm('아직 가입 키를 만들지 않았어요. 키 없이 배포하면 나중에 환경변수를 직접 넣어야 합니다. 그래도 계속할까요?')) event.preventDefault();
+  if (!confirm('아직 가입 키를 만들지 않았어요. 키 없이 배포하면 나중에 환경변수를 직접 넣어야 합니다. 계속할까요?')) event.preventDefault();
 });
 $('site').oninput = link;
 link();
-// Deep links from the app (e.g. /deploy.html#storage-help) open the matching answer.
+// 앱의 /deploy.html#storage-help 같은 링크는 해당 안내를 펼쳐서 엽니다.
 const target = location.hash && document.querySelector(`details${location.hash}`);
 if (target) target.open = true;
 </script>

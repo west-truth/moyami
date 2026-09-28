@@ -1,132 +1,127 @@
-# moyami · Moya-mini
+# moyami
 
-**[Moya Reader 바로가기](https://west-truth.github.io/moya-reader/)** · [Moya Reader 프로젝트](https://github.com/west-truth/moya-reader)
+**[배포 가이드](https://west-truth.github.io/moyami/)** · **[Moya Reader](https://github.com/west-truth/moya-reader)** · [Moya Reader 바로 써 보기](https://west-truth.github.io/moya-reader/)
 
-Moya의 UI와 리더를 바탕으로 만든 경량 만화·소설 웹 리더입니다. Mangayomi JavaScript 확장 소스로 탐색하고, 최근 읽기에서 이어 읽습니다. 데스크톱과 모바일 브라우저, 설치형 PWA를 지원합니다.
+Mangayomi JavaScript 확장 소스로 만화와 소설을 찾아 읽는 개인용 웹 리더입니다. [Moya Reader](https://github.com/west-truth/moya-reader)의 화면과 리더를 가볍게 옮겨 와, Vercel 무료 요금제에 5분 안에 내 리더를 만들 수 있게 했습니다. 데스크톱·모바일 브라우저와 설치형 앱(PWA)에서 쓸 수 있습니다.
 
-- 만화: 스크롤·이음새 없음·한 쪽·두 쪽 보기, 앞뒤 이미지 준비
-- 소설: 스크롤·페이지 보기, 글꼴·테마·읽기 위치·북마크
-- 확장 저장소 직접 등록, 확장 코드·메타데이터의 브라우저 캐시
-- 아이디·비밀번호 로그인, 가입 키로만 가입, 관리자 초대
-- 같은 계정으로 로그인한 기기 사이에서 읽기 기록·이어읽기 위치·저장소 목록 동기화. 표지와 리더 설정은 기기마다 보관합니다.
-- 기다리는 동안에도 흐름이 끊기지 않는 화면: 작품을 누르면 제목과 표지가 먼저 보이고, 회차를 넘기면 다음 화 카드가 나타납니다. 불러오는 중 뒤로 가기를 누르면 보던 화면과 스크롤 위치로 그대로 돌아갑니다. 시스템의 ‘동작 줄이기’ 설정을 따릅니다.
+도움이 됐다면 ⭐ **Star**로 응원해 주세요. [moyami](https://github.com/west-truth/moyami) · [Moya Reader](https://github.com/west-truth/moya-reader)
 
-## 원터치 배포
+## 주요 기능
 
-**[배포 가이드 열기 — ① 가입 키 만들기 → ② Vercel 배포 → ③ 관리자 가입](https://west-truth.github.io/moyami/)**
+- **만화** — 세로 스크롤·이음새 없는 스크롤·한 쪽·두 쪽 보기, 다음 이미지 미리 받기
+- **소설** — 스크롤·페이지 보기, 글꼴·테마, 읽던 위치·북마크·메모
+- **확장 소스** — Mangayomi JS 저장소를 직접 등록하고, 자주 쓰는 소스는 탭에 고정
+- **계정** — 아이디·비밀번호 로그인, 가입 키로만 가입, 관리자 초대
+- **기기 간 이어 읽기** — 같은 계정이면 읽던 작품·위치·저장소 목록을 휴대폰과 PC가 공유
+- **매끄러운 화면** — 작품을 누르면 제목과 표지가 먼저 보이고, 회차를 넘기면 다음 화 카드가 나타납니다. 불러오는 중 뒤로 가면 보던 화면과 스크롤 위치로 돌아갑니다.
 
-가이드 화면의 버튼만 차례로 누르면 됩니다. 가입 키는 브라우저 안에서 만들어지며 서버로 보내거나 배포 주소에 넣지 않습니다. 가이드가 열리지 않으면 [public/deploy.html](public/deploy.html)을 내려받아 브라우저로 열어도 됩니다.
+## 시작하기
 
-[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/clone?repository-url=https%3A%2F%2Fgithub.com%2Fwest-truth%2Fmoyami&env=BOOTSTRAP_KEY%2CSITE_NAME&envDescription=BOOTSTRAP_KEY%3A%20Generate%20and%20save%20a%20first-signup%20key%20using%20the%20setup%20page.%20SITE_NAME%3A%20Your%20app%20name.&envLink=https%3A%2F%2Fwest-truth.github.io%2Fmoyami%2F&envDefaults=%7B%22SITE_NAME%22%3A%22moyami%22%7D&products=%5B%7B%22type%22%3A%22integration%22%2C%22integrationSlug%22%3A%22upstash%22%2C%22productSlug%22%3A%22upstash-kv%22%2C%22protocol%22%3A%22storage%22%7D%5D)
+**[배포 가이드 열기](https://west-truth.github.io/moyami/)** 에서 버튼을 차례로 누르면 됩니다. 필요한 것은 GitHub 계정과 Vercel 계정(GitHub로 가입 가능)뿐입니다.
+
+[![Vercel로 배포](https://vercel.com/button)](https://vercel.com/new/clone?repository-url=https%3A%2F%2Fgithub.com%2Fwest-truth%2Fmoyami&env=BOOTSTRAP_KEY%2CSITE_NAME&envDescription=BOOTSTRAP_KEY%3A%20%EB%B0%B0%ED%8F%AC%20%EA%B0%80%EC%9D%B4%EB%93%9C%EC%97%90%EC%84%9C%20%EC%83%9D%EC%84%B1%ED%95%9C%20%EC%B2%AB%20%EA%B0%80%EC%9E%85%20%ED%82%A4%20%2832%EC%9E%90%20%EC%9D%B4%EC%83%81%29.%20SITE_NAME%3A%20%EC%9B%90%ED%95%98%EB%8A%94%20%EC%95%B1%20%ED%91%9C%EC%8B%9C%20%EC%9D%B4%EB%A6%84.&envLink=https%3A%2F%2Fwest-truth.github.io%2Fmoyami%2F&envDefaults=%7B%22SITE_NAME%22%3A%22moyami%22%7D&products=%5B%7B%22type%22%3A%22integration%22%2C%22integrationSlug%22%3A%22upstash%22%2C%22productSlug%22%3A%22upstash-kv%22%2C%22protocol%22%3A%22storage%22%7D%5D)
 
 | 단계 | 할 일 | 입력하는 값 |
 | --- | --- | --- |
 | ① 가입 키 | 가이드에서 **가입 키 생성**을 누릅니다. 키가 자동으로 복사됩니다. **파일로 보관**도 눌러 두세요. | — |
-| ② 배포 | **Vercel 배포 시작**을 누르고 GitHub로 로그인합니다. 저장소 이름을 정하고, **Upstash** 저장 공간을 **Free** 요금제로 만듭니다. | `BOOTSTRAP_KEY`: ①의 키<br>`SITE_NAME`: 앱 이름 (기본값 `moyami`) |
-| ③ 가입 | 배포된 주소(`이름.vercel.app`)를 열어 **관리자 계정**을 만듭니다. 다음부터는 아이디·비밀번호만 씁니다. | ①의 키, 아이디, 비밀번호(10자 이상) |
+| ② 배포 | **Vercel 배포 시작**을 누르고 GitHub로 로그인한 뒤, **Upstash** 저장 공간을 **Free** 요금제로 만듭니다. | `BOOTSTRAP_KEY`: ①의 키<br>`SITE_NAME`: 앱 이름 |
+| ③ 가입 | 배포된 주소(`이름.vercel.app`)를 열어 **관리자 계정**을 만듭니다. | ①의 키, 아이디, 비밀번호(10자 이상) |
 
-가입한 뒤 **설정 → 확장 소스 → 저장소 → 저장소 추가**에 사용할 Mangayomi JS 저장소 주소를 넣고 소스를 고르세요. 기본으로 들어 있는 저장소나 소스는 없습니다. 휴대폰에서는 브라우저 메뉴의 **홈 화면에 추가**로 앱처럼 쓸 수 있습니다.
+가입 키는 브라우저 안에서 만들어지며 어디에도 전송되지 않습니다. 가이드 페이지가 열리지 않으면 [public/deploy.html](public/deploy.html)을 내려받아 브라우저로 열어도 됩니다.
 
-### 앱을 열었는데 “저장 공간 연결이 필요합니다”라고 나오나요?
+가입한 뒤 **설정 → 확장 소스 → 저장소 → 저장소 추가**에 쓸 Mangayomi JS 저장소 주소를 넣고 소스를 고르세요. 기본으로 들어 있는 저장소는 없습니다. 휴대폰에서는 브라우저 메뉴의 **홈 화면에 추가**로 앱처럼 쓸 수 있습니다.
 
-앱은 만들어졌지만 **계정과 읽기 기록을 보관할 저장 공간이 아직 연결되지 않은 상태**입니다. 다음 순서로 연결하면 됩니다.
+## 사용 안내
 
-1. [Vercel 대시보드](https://vercel.com/dashboard)에 로그인하고, 방금 만든 **내 moyami 프로젝트**를 엽니다.
-2. **Storage(저장 공간)** 탭에서 **Create Database(저장 공간 만들기)**를 누릅니다. Marketplace 화면이 나오면 **Upstash → Redis**를 선택하세요.
-3. 처음 사용한다면 안내에 따라 계정을 연결하고 새 저장 공간을 만듭니다. 이름은 `my-moyami`처럼 알아보기 쉽게 정하면 됩니다. 무료로 쓰려면 **Free** 요금제를 선택하세요.
-4. **Connect to Project(프로젝트에 연결)**가 나오면 내 moyami 프로젝트를 선택합니다. 사용할 환경을 묻는다면 **Production(실제 서비스)**을 선택하고 연결을 완료합니다.
-5. 프로젝트의 **Deployments(배포 내역)** 탭을 엽니다. 가장 최근 배포의 **⋯ → Redeploy(다시 배포)**를 누르고 완료될 때까지 기다립니다. *새로 연결한 저장 공간을 앱에 적용하는 과정입니다.*
-6. 내 앱 주소를 새로고침합니다. 가입 화면이 보이면 완료입니다. 처음 만든 가입 키로 관리자 계정을 만드세요.
+### 다른 기기에서 이어 읽기
 
-이미 저장 공간을 만들었다면 새로 만들 필요 없이 해당 저장 공간을 열어 **내 프로젝트에 연결되어 있는지** 확인하세요. 처음에는 moyami용으로 하나를 따로 만드는 편이 다른 앱과 헷갈리지 않습니다.
+휴대폰과 PC에서 **같은 앱 주소에 같은 계정으로 로그인**하면 됩니다. 바로 옮겨 읽으려면 **설정 → 계정 → 지금 동기화**를 누르세요.
 
-**정상적으로 연결되면 복잡한 주소나 토큰을 직접 복사할 필요가 없습니다.** 연결에 필요한 값은 Vercel이 자동으로 넣어줍니다. 화면 이름이 다르면 [Vercel의 저장 공간 안내](https://vercel.com/docs/marketplace-storage) 또는 [Upstash 연결 안내](https://upstash.com/docs/redis/howto/vercelintegration)를 참고하세요.
+| 기기끼리 공유 | 기기마다 따로 |
+| --- | --- |
+| 최근 읽은 작품·회차, 만화 페이지·소설 읽던 위치 | 표지, 작품 본문·만화 이미지 |
+| 회차 읽음·안 읽음 표시 | 글꼴·글자 크기·읽기 방식 등 리더 설정 |
+| 확장 저장소 목록, 고정한 소스 | 소스 로그인·옵션, 연결 방식, 북마크·메모, 회차 제목 수정 |
+
+- 읽는 동안의 변경은 약 2초씩 모아 저장하고, 열린 앱은 15초마다 다른 기기의 기록을 확인합니다.
+- 연결이 끊겨도 변경은 기기에 남았다가 다시 연결되면 저장됩니다. 같은 기록을 동시에 고쳤다면 먼저 저장된 쪽을 따릅니다.
+- 계정당 **3 MiB·3,000항목**까지 보관합니다. 누적 전송량이 아니라 현재 보관량이며, 같은 회차의 위치는 최신 값 하나만 남습니다. 한도에 닿으면 설정에 안내가 뜨고 새 기록은 기기에 보관합니다.
+- 다른 기기에서 처음 열면 표지가 비어 있을 수 있습니다. 작품을 열면 소스에서 다시 받아 그 기기에 보관합니다.
+
+### 다운로드와 캐시
+
+**설정 → 다운로드**에서 이 기기에서만 적용되는 설정을 바꿉니다.
+
+| 항목 | 선택지 | 설명 |
+| --- | --- | --- |
+| 미리 불러오기 | 켜기·끄기 (기본 켜짐) | 최근 읽기에서 탐색 목록과 이어 읽을 회차를, 읽는 동안에는 다음 회차를 준비합니다. |
+| 회차 이미지 미리 받기 | 2·8·16장 (기본 8장) | 소설은 다음 회차 본문을 받습니다. |
+| 목록·소스 캐시 한도 | 16·32·64·128 MiB (기본 32 MiB) | 한도를 줄이면 오래된 항목부터 지웁니다. |
+| 콘텐츠 캐시 비우기 | — | 목록·소스 코드·표지·미리 받은 회차를 지웁니다. 읽기 기록·계정·설정은 남습니다. |
+
+지금 보는 화면의 요청이 항상 먼저이고, 다른 화면으로 가면 미리 받던 작업은 멈춥니다. 데이터 절약 모드·2G 연결·숨겨진 탭에서는 미리 받지 않습니다. 회차 캐시는 잠시 보관하는 용도라 오프라인 읽기를 보장하지 않습니다.
+
+### 원본 사이트 연결
+
+Vercel에 배포해도 원본 사이트의 Cloudflare 인증이나 IP 차단은 자동으로 풀리지 않고, 쓸 수 있는 소스도 저장소마다 다릅니다. 막히는 소스는 **설정 → 연결**에서 **브라우저 연결 확장**을 쓰면 내 브라우저로 원본에 접속합니다. 설치 방법은 앱의 연결 설정에 있는 안내를 따르세요.
+
+- PC Chromium 계열·Firefox용 설치 파일(ZIP)을 제공합니다.
+- Android Firefox와 iPhone·iPad Safari는 확장 서명·배포 절차가 따로 필요합니다.
+
+### 계정과 가입 키
+
+- 처음 만든 가입 키(`BOOTSTRAP_KEY`)는 첫 관리자 가입에만 쓰입니다.
+- 다른 사람은 관리자가 **설정 → 계정 → 가입 키 발급**으로 초대합니다. 24시간 동안 한 번 쓸 수 있고, 발급 화면에서 취소할 수 있습니다.
+- 비밀번호 찾기(이메일 복구)는 없습니다. 관리자 비밀번호를 잊지 않도록 보관하세요.
+- 비밀번호는 salt를 포함한 scrypt 해시로, 세션과 초대 키도 해시로만 저장합니다.
+
+## 문제 해결
+
+### “저장 공간 연결이 필요합니다”라고 나와요
+
+계정과 읽기 기록을 보관할 Upstash Redis가 아직 연결되지 않은 상태입니다.
+
+1. [Vercel 대시보드](https://vercel.com/dashboard)에서 내 moyami 프로젝트를 엽니다.
+2. **Storage → Create Database**에서 **Upstash → Redis**를 고르고 **Free** 요금제로 만듭니다. 이미 만든 게 있다면 그것을 골라도 됩니다.
+3. **Connect to Project**에서 내 프로젝트를, 환경은 **Production**을 고릅니다.
+4. **Deployments**에서 가장 최근 배포의 **⋯ → Redeploy**를 누릅니다.
+5. 끝나면 앱을 새로고침합니다. 가입 화면이 보이면 완료입니다.
+
+주소와 토큰은 Vercel이 자동으로 넣어 줍니다. 화면 이름이 다르면 [Vercel 저장 공간 안내](https://vercel.com/docs/marketplace-storage)를 참고하세요.
 
 <details>
-<summary>연결했는데도 안 될 때만 확인하는 고급 설정</summary>
+<summary>연결했는데도 계속 나온다면</summary>
 
-Vercel 프로젝트의 **Settings → Environment Variables**에서 다음 두 쌍 중 하나가 있는지 확인하세요. 같은 줄의 주소와 토큰이 모두 있어야 합니다.
+**Settings → Environment Variables**에 아래 두 쌍 중 하나가 온전히 있어야 합니다. 값을 고쳤다면 다시 배포하세요. 토큰은 비밀번호처럼 다뤄 주세요.
 
-| 저장 공간 주소 | 접속 토큰 |
+| 주소 | 토큰 |
 | --- | --- |
 | `KV_REST_API_URL` | `KV_REST_API_TOKEN` |
 | `UPSTASH_REDIS_REST_URL` | `UPSTASH_REDIS_REST_TOKEN` |
 
-값이 없다면 저장 공간 연결을 다시 확인하세요. 값을 추가하거나 수정했다면 **Redeploy**가 필요합니다. 토큰은 비밀번호와 같으므로 다른 사람에게 공개하지 마세요.
-
-`BOOTSTRAP_KEY` 안내가 나온다면 저장 공간 문제가 아니라 **첫 가입 키가 빠진 상태**입니다. [배포 준비 페이지](https://west-truth.github.io/moyami/)에서 키를 만들고 보관한 뒤, **Environment Variables**에 이름 `BOOTSTRAP_KEY`, 값에 생성한 키를 추가하고 다시 배포하세요.
-
 </details>
 
-### 다른 기기에서 이어 읽기
+### “첫 가입 키가 설정되지 않았습니다”라고 나와요
 
-휴대폰과 PC에서 **같은 앱 주소에 같은 계정으로 로그인**하면 됩니다. 첫 로그인과 앱으로 돌아왔을 때 기록을 받아옵니다. 읽는 동안 생긴 변경사항은 약 2초 동안 모아 저장하고, 열린 앱은 15초 간격으로 다른 기기의 기록을 확인합니다. 앱을 떠날 때도 남은 기록 전송을 시도하며, 전송하지 못한 기록은 기기에 남겨 다음 연결 때 재시도합니다. 바로 옮겨 읽으려면 **설정 → 계정 → 지금 동기화**를 누르세요.
-
-| 함께 저장되는 항목 | 각 기기에만 남는 항목 |
-| --- | --- |
-| 최근 읽은 작품·회차, 만화 페이지·소설 읽던 위치 | 표지 이미지와 표지 주소, 작품 본문·만화 이미지 |
-| 회차 읽음·안 읽음 표시 | 글꼴·글자 크기·읽기 방식 등 리더 설정 |
-| 확장 저장소 목록, 고정한 소스 | 소스의 로그인 정보·개별 옵션, 연결 방식, 북마크·메모, 회차 제목 수정 |
-
-다른 기기에는 처음에 표지가 없을 수 있습니다. 작품을 열거나 이어 읽으면 해당 소스에서 표지를 다시 받아 **그 기기에 보관**합니다. 이미지 파일은 동기화 저장 공간에 올리지 않습니다.
-
-연결이 끊겨도 변경사항은 이 기기에 남겨두며, 연결이 돌아오거나 다음 접속 시 다시 저장합니다. 동시에 같은 기록을 수정했다면 서버에 먼저 저장된 변경을 적용합니다. 서로 다른 작품의 기록은 따로 합칩니다. 최근 읽기에서 삭제한 기록도 다른 기기에 반영합니다.
-
-**3MiB는 누적 전송량이 아니라 서버에 현재 보관 중인 데이터의 한도입니다.** 같은 작품의 최근 읽기와 같은 회차의 위치는 최신 값으로 교체하므로, 1쪽 → 2쪽 → 3쪽으로 이동해도 위치 기록은 하나입니다. 수정 전 값을 모아두는 변경 이력은 저장하지 않습니다. 서로 다른 회차의 마지막 위치·읽음 표시와 삭제 표시는 별도 항목으로 남습니다.
-
-계정당 동기화 데이터는 **최대 3MiB·3,000항목**으로 제한합니다. 항목은 작품 기록, 회차 위치, 읽음 표시 등을 각각 셉니다. 한도에 도달하면 설정에 안내하고, 새 변경사항은 이 기기에 보관합니다. 삭제 상태도 항목에 포함됩니다. 요금제 사용량에는 저장 용량뿐 아니라 요청 횟수도 포함되므로, 페이지를 넘길 때마다 서버에 보내지 않고 변경을 모아 전송합니다.
-
-### 주소와 이름
-
-Vercel의 프로젝트 이름과 `*.vercel.app` 주소는 배포자가 정합니다. 개인 도메인은 Vercel **Settings → Domains**에서 연결합니다. `SITE_NAME`을 바꾸고 다시 배포하면 앱 제목과 PWA 이름에 반영됩니다.
-
-브라우저 연결 확장 패키지는 배포된 앱의 주소에 맞춰 빌드합니다. 개인 도메인을 추가했다면 `APP_URL=https://내-도메인`을 설정하고 재배포한 뒤 확장 패키지를 다시 설치하세요. 여러 주소를 쓰면 `CONNECTOR_READER_ORIGINS`에 쉼표로 구분해 넣습니다.
-
-### 가입 키와 계정
-
-- 첫 키는 첫 관리자 가입에만 사용합니다. 첫 가입 이후 같은 키로 추가 가입할 수 없습니다.
-- 관리자는 **설정 → 계정 → 가입 키 발급**에서 24시간 동안 한 번 쓸 수 있는 키를 발급합니다. 발급 화면에서 해당 키를 취소할 수 있습니다.
-- 비밀번호는 salt를 포함한 scrypt 해시로, 세션·초대 키는 해시로 저장합니다. 로그아웃 시 서버 세션도 폐기합니다.
-- 인증 시도 횟수 제한은 Redis에서 인스턴스 간 공유됩니다. 로컬 단일 서버에서는 계정 파일에 유지합니다.
-- 계정 DB와 배포 환경변수를 보관하세요. 비밀번호 분실 시 이메일 복구 기능은 없습니다. `BOOTSTRAP_KEY`는 환경설정에 유지해야 하며 바꿔도 기존 계정은 초기화되지 않습니다.
-- Vercel Preview에 운영 DB를 연결하면 운영 계정을 공유합니다. 별도 테스트 DB를 사용하거나 테스트용 `AUTH_NAMESPACE`를 지정하세요. 기존 앱의 namespace를 변경하면 별도 계정 공간으로 전환됩니다.
-
-### 원본 사이트 연결
-
-무료 호스팅에 배포해도 원본 사이트의 Cloudflare 인증·IP 차단이 자동으로 해결되지는 않습니다. 실행 가능한 JS 확장 범위도 저장소별로 다릅니다. 필요한 경우 **설정 → 연결**에서 브라우저 연결 확장 또는 서버 프록시를 사용합니다.
-
-설치 패키지는 PC Chromium 계열·Firefox용 개발자 설치 ZIP을 제공합니다. Android Firefox와 iOS/iPadOS Safari의 일반 사용자 배포에는 각각 서명·Apple 배포 절차가 필요합니다. iPhone/iPad에서 사이트 자체가 서버 접근을 차단하면 PWA 설치만으로 해결되지 않습니다.
-
-## 업데이트와 문제 해결
+`BOOTSTRAP_KEY`가 없거나 32자보다 짧습니다. [배포 가이드](https://west-truth.github.io/moyami/)에서 키를 만들고, **Settings → Environment Variables**에 `BOOTSTRAP_KEY`로 추가한 뒤 다시 배포하세요.
 
 ### 새 버전을 배포했는데 예전 화면이 보여요
 
-moyami는 설치형 앱(PWA)이라 화면 파일을 기기에 보관합니다. 열려 있는 탭이 서로 다른 버전의 파일을 섞어 쓰지 않도록, 새 버전은 **이 앱의 탭과 창을 모두 닫았다가 다시 열 때** 적용됩니다. 새로고침만으로는 바뀌지 않습니다.
+moyami는 설치형 앱이라 화면 파일을 기기에 보관하고, **앱의 탭과 창을 모두 닫았다가 다시 열 때** 새 버전으로 바꿉니다. 새로고침만으로는 바뀌지 않습니다. 휴대폰은 최근 앱 목록에서도 닫아 주세요. 한 번에 안 바뀌면 한 번 더 닫았다 엽니다.
 
-1. 이 앱을 연 브라우저 탭과 설치한 앱 창을 모두 닫습니다. 휴대폰은 최근 앱 목록에서도 밀어서 닫습니다.
-2. 다시 엽니다. 한 번에 안 바뀌면 한 번 더 닫았다 엽니다.
-
-그래도 안 되면 사이트 데이터를 지웁니다. 이 기기에만 있던 기록과 리더 설정도 함께 지워지지만, 동기화된 읽기 기록은 다시 로그인하면 돌아옵니다.
+그래도 안 되면 사이트 데이터를 지웁니다. 이 기기에만 있던 설정은 사라지지만, 동기화된 읽기 기록은 다시 로그인하면 돌아옵니다.
 
 | 기기 | 방법 |
 | --- | --- |
-| PC Chrome·Edge | 앱을 열고 F12 → **Application** → **Storage** → **Clear site data** → 새로고침 |
-| Android Chrome | 설정 → 사이트 설정 → 모든 사이트 → 내 앱 주소 → **삭제**. 홈 화면 앱은 아이콘을 길게 눌러 앱 정보 → 저장공간 → 데이터 삭제 |
-| iPhone·iPad | 설정 → Safari → 고급 → 웹사이트 데이터 → 내 앱 주소 검색 → 삭제. 홈 화면 앱은 아이콘을 지우고 다시 추가 |
+| PC Chrome·Edge | F12 → **Application** → **Storage** → **Clear site data** → 새로고침 |
+| Android Chrome | 설정 → 사이트 설정 → 모든 사이트 → 내 앱 주소 → **삭제** |
+| iPhone·iPad | 설정 → Safari → 고급 → 웹사이트 데이터 → 내 앱 주소 → 삭제. 홈 화면 앱은 지우고 다시 추가 |
 
-### 예전 접근 키 방식(moya-source-lite)에서 옮겨 올 때
+## 운영하기
 
-같은 Vercel 프로젝트에 moyami를 배포하면 접근 키 대신 계정 로그인으로 바뀝니다. 주소와 저장 공간(Upstash) 연결은 그대로 씁니다.
+### 새 버전 받기
 
-1. 프로젝트의 **Settings → Environment Variables**에 `BOOTSTRAP_KEY`(가이드에서 생성)와 `SITE_NAME`을 추가합니다.
-2. 더 이상 쓰지 않는 `APP_ACCESS_KEY`는 지워도 됩니다. `APP_SECRET`은 moyami도 로그인 서명에 쓰므로 **그대로 둡니다**. 바꾸면 발급된 로그인이 모두 풀립니다.
-3. 다시 배포합니다. 아래 [기존 Vercel 프로젝트에 직접 배포하기](#기존-vercel-프로젝트에-직접-배포하기)를 참고하세요.
-4. 각 기기에서 위의 “예전 화면이 보여요” 방법으로 예전 화면을 정리합니다.
-5. 관리자 계정을 만들고 저장소를 다시 추가합니다. 예전 기록은 계정 없이 저장된 것이라 새 계정으로 옮겨지지 않습니다.
-
-### 원본 저장소의 새 버전 받기
-
-원터치 배포는 내 GitHub 계정에 이 저장소의 복사본을 만들고, Vercel은 그 복사본이 바뀔 때마다 자동으로 배포합니다. 새 버전을 받으려면 내 복사본에 원본 변경을 가져와 올립니다.
+원터치 배포는 내 GitHub 계정에 이 저장소의 복사본을 만들고, Vercel은 그 복사본이 바뀔 때마다 다시 배포합니다. 새 버전은 원본 변경을 내 복사본으로 가져오면 됩니다.
 
 ```sh
 git clone https://github.com/내-계정/내-저장소.git && cd 내-저장소
@@ -135,71 +130,71 @@ git pull upstream main
 git push origin main   # Vercel이 자동으로 다시 배포합니다.
 ```
 
-배포 후에는 위 “예전 화면이 보여요” 안내대로 앱을 닫았다 다시 여세요.
+### 이름과 주소 바꾸기
 
-## 기존 Vercel 프로젝트에 직접 배포하기
+- 앱 이름은 `SITE_NAME`을 바꾸고 다시 배포하면 됩니다.
+- 개인 도메인은 Vercel **Settings → Domains**에서 연결합니다. 브라우저 연결 확장을 쓴다면 `APP_URL=https://내-도메인`도 추가해 다시 배포하고 확장을 다시 설치하세요. 주소가 여럿이면 `CONNECTOR_READER_ORIGINS`에 쉼표로 나열합니다.
 
-GitHub 연결 없이 Vercel CLI로 이미 있는 프로젝트에 올릴 수도 있습니다. [Vercel 토큰](https://vercel.com/account/tokens)을 만들어 셸 환경변수로만 넣고, 저장소나 채팅에 붙여 넣지 마세요.
+### Vercel CLI로 배포하기
+
+GitHub 연결 없이 이미 있는 Vercel 프로젝트에 바로 올릴 수도 있습니다. [Vercel 토큰](https://vercel.com/account/tokens)은 셸 환경변수로만 쓰고 저장소에 넣지 마세요.
 
 ```sh
-export VERCEL_TOKEN=...   # 셸에서만 사용
+export VERCEL_TOKEN=...
 npx vercel link --yes --project 내-프로젝트 --scope 내-팀 --token "$VERCEL_TOKEN"
 npx vercel pull --yes --environment=production --token "$VERCEL_TOKEN"
-# 로컬 빌드는 운영 주소를 알 수 없으므로 연결 확장용 주소를 직접 지정합니다.
+# 로컬 빌드는 운영 주소를 모르므로 직접 알려 줍니다.
 APP_URL=https://내-앱.vercel.app npx vercel build --prod --token "$VERCEL_TOKEN"
 npx vercel deploy --prebuilt --prod --token "$VERCEL_TOKEN"
 ```
 
-`vercel pull`은 운영 환경변수를 `.vercel/`과 `.env.local`에 내려받습니다. 두 곳 모두 커밋하지 마세요. 배포가 잘못되면 Vercel 대시보드의 **Deployments**에서 이전 배포를 **Promote to Production**으로 되돌릴 수 있습니다.
+`vercel pull`이 만드는 `.vercel/`과 `.env.local`은 커밋하지 마세요. 문제가 생기면 **Deployments**에서 이전 배포를 **Promote to Production**으로 되돌릴 수 있습니다.
 
-## 로컬 실행
+### 예전 접근 키 방식에서 옮겨 오기
 
-Node.js 22가 필요합니다. 서버에 Chromium을 설치할 필요는 없습니다.
+예전 moya-source-lite(접근 키 방식)를 쓰던 Vercel 프로젝트에 그대로 moyami를 배포할 수 있습니다. 주소와 Upstash 연결은 그대로 씁니다.
+
+1. **Environment Variables**에 `BOOTSTRAP_KEY`와 `SITE_NAME`을 추가합니다.
+2. `APP_ACCESS_KEY`는 지워도 됩니다. `APP_SECRET`은 로그인 서명에 계속 쓰이므로 그대로 둡니다.
+3. 다시 배포하고, 각 기기에서 [예전 화면 정리](#새-버전을-배포했는데-예전-화면이-보여요)를 합니다.
+4. 관리자 계정을 만들고 저장소를 다시 추가합니다. 예전 기록은 새 계정으로 옮겨지지 않습니다.
+
+### 운영 시 주의
+
+- 테스트용 Preview 배포에 운영 Redis를 연결하면 운영 계정을 함께 씁니다. 별도 DB를 쓰거나 `AUTH_NAMESPACE`를 다르게 지정하세요.
+- `BOOTSTRAP_KEY`는 환경변수에 남겨 두세요. 바꿔도 기존 계정은 그대로입니다.
+
+## 개발
+
+### 로컬 실행
+
+Node.js 22가 필요합니다.
 
 ```sh
 npm ci
-cp .env.example .env
-# .env의 BOOTSTRAP_KEY를 배포 가이드에서 생성한 키로 채우세요.
+cp .env.example .env   # BOOTSTRAP_KEY를 채웁니다.
 npm run build
 node --env-file=.env --import tsx server/index.ts
 ```
 
-기본 주소는 `http://127.0.0.1:4173`입니다. 계정과 동기화 데이터는 `data/auth.json`에 저장되므로 이 디렉터리를 보관하세요. 파일 저장은 단일 서버 프로세스용이며 여러 인스턴스에는 Redis를 사용합니다.
+기본 주소는 `http://127.0.0.1:4173`입니다. Redis 없이 실행하면 계정과 동기화 데이터를 `data/auth.json`에 저장하므로 이 폴더를 보관하세요. 파일 저장은 서버 하나일 때만 쓰고, 여러 대로 운영하면 Redis를 연결합니다.
 
-Docker를 쓰고 싶다면 환경변수를 작성한 뒤 `docker compose up -d --build`로 실행합니다. 계정 파일은 `accounts` 볼륨에 보관합니다. HTTPS 프록시 뒤에서는 `COOKIE_SECURE=1`을 설정하세요.
+Docker는 `docker compose up -d --build`로 실행하며 계정 파일은 `accounts` 볼륨에 남습니다. HTTPS 프록시 뒤에서는 `COOKIE_SECURE=1`을 설정하세요.
 
-## 개발·검증
+### 테스트
 
 ```sh
 npm run build
-npm test
-# 실제 Redis Lua 테스트까지 실행하려면 임시 Redis 포트를 지정합니다.
-REDIS_TEST_PORT=6379 npm test
-# Chromium 실행 파일 경로를 설정하면 브라우저 회귀 테스트를 실행할 수 있습니다.
-MOYA_SOURCE_BROWSER_EXECUTABLE=/path/to/chromium npm run test:auth
-MOYA_SOURCE_BROWSER_EXECUTABLE=/path/to/chromium npm run test:sync
-MOYA_SOURCE_BROWSER_EXECUTABLE=/path/to/chromium npm run test:browser
-MOYA_SOURCE_BROWSER_EXECUTABLE=/path/to/chromium npm run test:pwa
-# Vercel과 동일한 빌드 (로컬에서는 자신의 앱 주소가 필요)
-APP_URL=https://reader.example.com npm run build:hosting
+npm test                              # REDIS_TEST_PORT=6379를 주면 실제 Redis로도 확인
+export MOYA_SOURCE_BROWSER_EXECUTABLE=/path/to/chromium
+npm run test:auth
+npm run test:sync
+npm run test:browser
+npm run test:pwa
+APP_URL=https://reader.example.com npm run build:hosting   # Vercel과 같은 빌드
 ```
 
-연결 확장 회귀 테스트(`npm run test:connector`)는 로컬에서 443 포트를 열기 때문에 관리자 권한이 필요합니다.
-
-`public/deploy.html`이 배포 가이드 원본이며 `npm run build:client`가 GitHub Pages용 `docs/index.html`을 갱신합니다. 키나 개인 환경설정은 커밋하지 않습니다.
-
-## 다운로드와 캐시 설정
-
-**설정 → 다운로드**에서 이 기기의 정책을 바꿀 수 있습니다. 변경 즉시 저장되며 다른 기기로 동기화하지 않습니다.
-
-- **미리 불러오기:** 최근 읽기에서도 탐색 목록·표지 최대 6개와 이어 읽을 회차를 준비합니다. 읽는 동안에는 다음 회차를 준비합니다.
-- **회차 이미지:** 2·8·16장 중 선택합니다. 기본은 8장이며, 소설은 다음 회차 본문을 받습니다.
-- **목록·소스 캐시:** 16·32·64·128 MiB 중 선택합니다. 기본은 32 MiB이며, 한도를 줄이면 오래된 항목부터 비웁니다.
-- **콘텐츠 캐시 비우기:** 목록·소스 코드·표지와 미리 받은 회차 캐시를 비웁니다. 읽기 기록·읽던 위치·계정·설정은 유지합니다. 브라우저 자체의 이미지 캐시와 앱 설치 파일은 포함하지 않습니다.
-
-표지 캐시는 별도로 최대 8 MiB, 연결 확장 이미지와 회차 내용은 탭 안에서 각각 최대 24 MiB·8 MiB를 사용합니다. 회차 캐시는 일시 보관되므로 오프라인 다운로드를 보장하지 않습니다. 이미지·본문은 동기화 DB에 올리지 않습니다.
-
-현재 화면의 요청이 우선이며, 화면 이동 시 미리 받던 작업은 취소합니다. 데이터 절약 모드·느린 2G 연결·숨겨진 탭에서는 새 준비 작업을 시작하지 않습니다.
+`npm run test:connector`는 443 포트를 열어야 해서 관리자 권한이 필요합니다. 배포 가이드의 원본은 `public/deploy.html`이며, `npm run build:client`가 GitHub Pages용 `docs/index.html`로 복사합니다.
 
 ## 라이선스
 
