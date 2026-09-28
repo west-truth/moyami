@@ -33,6 +33,15 @@ try{
  assert.equal((await b.request.post(base+'/api/auth/login',{data:creds})).status(),200);const pb=await open(b);
  assert.equal(JSON.parse(await stored(pb,'moya-source-repositories'))[0],repo);assert.equal(await stored(pb,'moya-app-theme'),null);assert.equal(await stored(pb,'reader-profile-private'),null);
  const novel=await pb.evaluate(async key=>{const {indexedDB}=await import('/account-storage.js');return await new Promise((resolve,reject)=>{const req=indexedDB.open('moya-source-lite',2);req.onsuccess=()=>{const db=req.result,read=db.transaction('progress').objectStore('progress').get(key);read.onsuccess=()=>{db.close();resolve(read.result);};read.onerror=()=>reject(read.error);};});},sourceKey+'\n'+chapter+'/novel');assert.equal(novel.readerAnchor.blockIndex,12);assert.equal(novel.readerAnchor.offset,7);
+ // No manual sync: an edit on A reaches the already open B through scheduled push/pull.
+ await pa.evaluate(async sourceKey=>{const {localStorage:s}=await import('/account-storage.js');const key='moya-source-recent:'+sourceKey;const rows=JSON.parse(s.getItem(key));rows[0].title='자동 동기화 작품';s.setItem(key,JSON.stringify(rows));},sourceKey);
+ await pa.evaluate(async({sourceKey,chapter})=>(await import('/account-sync.js')).queueProgress(sourceKey,chapter+'/automatic',{page:7,totalPages:10,updatedAt:101}),{sourceKey,chapter});
+ await pb.waitForFunction(()=>document.querySelector('#recentFeatured').textContent.includes('자동 동기화 작품'),null,{timeout:40000});
+ const automatic=await pb.evaluate(async key=>{
+   const {indexedDB}=await import('/account-storage.js');
+   return new Promise(resolve=>{const req=indexedDB.open('moya-source-lite',2);req.onsuccess=()=>{const db=req.result,read=db.transaction('progress').objectStore('progress').get(key);read.onsuccess=()=>{db.close();resolve(read.result);};};});
+ },sourceKey+'\n'+chapter+'/automatic');
+ assert.equal(automatic.page,7);
  const recentKey='moya-source-recent:'+sourceKey;assert.equal(JSON.parse(await stored(pb,recentKey))[0].imageUrl,undefined);
  await pb.locator('#recentFeatured .primary-btn').click();await pb.locator('#reader:not([hidden])').waitFor();await pb.waitForFunction(()=>document.getElementById('readerPage').value==='3');
  assert.equal(JSON.parse(await stored(pb,recentKey))[0].imageUrl,base+'/fixture-cover','resume refetches cover from source on the new device');

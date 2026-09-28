@@ -100,7 +100,7 @@ export function setImagePriority(image, value) {
 export function flushImageQueue() { drain(); }
 // Detached images share the same priority queue and Blob cache as visible pages.
 export async function prefetchImages(urls, signal) {
-  for (const url of urls.slice(0,2)) {
+  for (const url of urls.slice(0,16)) {
     signal?.throwIfAborted();
     if (!url || cachedBlob(url)) continue;
     await new Promise(resolve => {
@@ -127,4 +127,8 @@ export function hydrateImages(root) {
 }
 export function disposeImages(root) {
   for (const [image, state] of states) if (root.contains(image)) { release(state); observer.unobserve(image); states.delete(image); }
+}
+
+export function clearImageCache() {
+  blobs.clear(); blobBytes = 0;
 }

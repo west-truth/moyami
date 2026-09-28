@@ -1,6 +1,6 @@
 import { localStorage, indexedDB, observeStorage, accountId } from '/account-storage.js';
 const metaKey='moyami-sync-meta', pendingPrefix='moyami-sync-pending:';
-let enabled=false, applying=false, timer, running, channel, retry=15000, lastPull=0;
+let enabled=false, applying=false, timer, running, channel, retry=2000, lastPull=0;
 const parse=(value,fallback)=>{try{return JSON.parse(value)??fallback;}catch{return fallback;}};
 const keyOf=(kind,...identity)=>JSON.stringify([kind,...identity]);
 const pick=(value,names)=>Object.fromEntries(names.filter(name=>value?.[name]!==undefined).map(name=>[name,value[name]]));
@@ -56,7 +56,7 @@ async function apply(key,value,expectedId){
   }
 }
 async function request(since,changes){
-  const response=await fetch('/api/sync'+(changes.length?'':`?since=${since}`),{cache:'no-store',signal:AbortSignal.timeout(8000),...(changes.length?{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({since,changes})}:{})});
+  const response=await fetch('/api/sync'+(changes.length?'':`?since=${since}`),{cache:'no-store',keepalive:changes.length>0,signal:AbortSignal.timeout(8000),...(changes.length?{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({since,changes})}:{})});
   if(response.status===401){dispatchEvent(new Event('moyami-session-expired'));throw new Error('access_denied');}
   const result=await response.json();if(!response.ok)throw new Error(result.error);
   if(result.userId!==accountId()){dispatchEvent(new Event('moyami-session-expired'));throw new Error('access_denied');}
@@ -103,7 +103,7 @@ export async function flushSync(){
         const changes=sent.map(({key,base,value})=>({key,base,value}));
         await merge(await request(metadata().revision,changes),sent);rows=pending();
       }
-      retry=15000;lastPull=Date.now();status(rows.length?'남은 변경사항을 준비 중입니다.':`동기화 완료 · ${new Date().toLocaleTimeString()}`);if(rows.length)later();return true;
+      retry=2000;lastPull=Date.now();status(rows.length?'남은 변경사항을 준비 중입니다.':`동기화 완료 · ${new Date().toLocaleTimeString()}`);if(rows.length)later();return true;
     }catch(error){status(error.message==='sync_limit'?'동기화 저장 공간이 가득 찼습니다. 새 기록은 이 기기에 보관됩니다.':'동기화하지 못했습니다. 변경사항은 이 기기에 보관되며 연결되면 다시 시도합니다.');retry=Math.min(retry*2,300000);if(error.message!=='sync_limit')later();return false;}
   };
   running=(navigator.locks?navigator.locks.request(`moyami-sync:${accountId()}`,task):task()).finally(()=>{running=null;});return running;
@@ -113,7 +113,10 @@ export async function startSync(){
   if(typeof BroadcastChannel==='function'){channel=new BroadcastChannel('moyami-sync:'+accountId());channel.onmessage=()=>dispatchEvent(new Event('moyami-synced'));}
   document.getElementById('syncNow')?.addEventListener('click',()=>void flushSync());
   addEventListener('online',()=>void flushSync());
-  addEventListener('visibilitychange',()=>{if(!document.hidden&&Date.now()-lastPull>30000)void flushSync();});
-  // Timed saves leave a durable outbox on close. No unbounded unload request or constant polling.
+  addEventListener('visibilitychange',()=>{if(document.hidden ? pending().length : Date.now()-lastPull>2000)void flushSync();});
+  addEventListener('pagehide',()=>{if(pending().length)void flushSync();});
+  // Pull while visible so another device's changes arrive without a reload.
+  // Failed requests retain exponential backoff and the durable local outbox.
+  setInterval(()=>{if(!document.hidden&&navigator.onLine&&!timer&&Date.now()-lastPull>=15000)void flushSync();},15000);
   await Promise.race([flushSync(),new Promise(resolve=>setTimeout(resolve,3000))]);
 }

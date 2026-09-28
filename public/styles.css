@@ -546,3 +546,6 @@ dialog[open]::backdrop { animation:screen-fade .2s ease; }
   .work-description p { font-size:13px; }
   .history-toolbar .discovery-search { padding:2px 10px; }
 }
+
+.settings-section .download-toggle { flex-direction: row; align-items: center; }
+.settings-section .download-toggle input { width: 20px; min-height: 20px; flex: 0 0 auto; }

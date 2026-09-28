@@ -110,7 +110,7 @@
   <dialog id="navigationDialog" class="navigation-dialog" aria-label="모야 메뉴"><div class="dialog-heading"><span class="app-wordmark" role="img" aria-label="MOYA"></span><button class="icon-btn" data-close="navigationDialog" aria-label="메뉴 닫기"><span data-icon="close"></span></button></div><div id="mobileNavigation"></div><footer class="library-sidebar-footer"><button data-settings="appearance"><span data-icon="settings"></span>설정</button></footer></dialog>
   <dialog id="settingsDialog" class="settings-dialog" aria-labelledby="settingsTitle">
     <div class="dialog-heading"><h2 id="settingsTitle" tabindex="-1">설정</h2><button class="icon-btn" data-close="settingsDialog" aria-label="설정 닫기"><span data-icon="close"></span></button></div>
-    <nav class="settings-tabs" aria-label="설정 항목"><button data-settings="appearance">화면</button><button data-settings="reader" id="readerSettingsTab">읽기</button><button data-settings="sources">확장 소스</button><button data-settings="connection">연결</button><button data-settings="account">계정</button></nav>
+    <nav class="settings-tabs" aria-label="설정 항목"><button data-settings="appearance">화면</button><button data-settings="reader" id="readerSettingsTab">읽기</button><button data-settings="sources">확장 소스</button><button data-settings="downloads">다운로드</button><button data-settings="connection">연결</button><button data-settings="account">계정</button></nav>
     <section id="accountSettings" class="settings-section" hidden>
       <h3>내 계정</h3><p id="accountName"></p><p>같은 계정으로 로그인하면 읽던 위치·읽기 기록·저장소 목록·고정 소스를 이어서 사용할 수 있습니다. 표지와 리더 설정은 이 기기에만 보관합니다.</p>
       <p id="syncStatus" role="status">동기화 준비 중…</p><button id="syncNow" class="ghost-btn">지금 동기화</button>
@@ -122,6 +122,19 @@
     <p id="settingsBusy" class="loading-inline" role="status" hidden></p><p id="settingsNotice" role="status" hidden></p>
     <div class="settings-body">
       <section id="appearanceSettings" class="settings-section"><h3>화면</h3><label>앱 테마<select id="appTheme"><option value="light">라이트</option><option value="dark">다크</option><option value="sepia">세피아</option><option value="midnight">미드나이트</option></select></label><div class="pwa-settings"><h3>앱 설치</h3><button id="installApp" class="primary-btn" hidden>앱 설치</button><p id="installStatus" class="field-help">브라우저 메뉴의 ‘앱 설치’ 또는 ‘홈 화면에 추가’를 이용하세요. iPhone·iPad에서는 공유 메뉴에서 추가할 수 있습니다.</p><p id="appUpdateStatus" class="field-help" role="status" hidden></p></div></section>
+      <section id="downloadSettings" class="settings-section" hidden>
+        <h3>다운로드와 캐시</h3>
+        <p class="field-help">이 기기에서 미리 받아둘 데이터와 캐시를 관리합니다. 설정은 자동 저장됩니다.</p>
+        <label class="download-toggle"><input id="downloadPrefetch" type="checkbox">미리 불러오기</label>
+        <p class="field-help">최근 읽기에서 탐색 목록과 이어 읽을 회차를 준비하고, 읽는 동안 다음 회차를 준비합니다. 데이터 절약 모드·2G 연결·숨겨진 탭에서는 시작하지 않습니다.</p>
+        <label>회차 이미지 미리 받기<select id="downloadPages"><option value="2">2장 · 적게</option><option value="8">8장 · 기본</option><option value="16">16장 · 넉넉하게</option></select></label>
+        <p class="field-help">소설은 다음 회차 본문을 받습니다. 이미지는 현재 화면을 우선하며 차례로 받습니다.</p>
+        <label>목록·소스 캐시 한도<select id="downloadCacheSize"><option value="16">16 MiB</option><option value="32">32 MiB · 기본</option><option value="64">64 MiB</option></select></label>
+        <p class="field-help">작품 정보와 소스 코드를 이 기기에 보관합니다. 표지는 별도로 최대 8 MiB, 연결 확장 이미지와 회차 내용은 탭 안에서 각각 최대 24 MiB·8 MiB를 사용합니다. 회차 캐시는 일시 보관되며 오프라인 다운로드를 보장하지 않습니다.</p>
+        <button id="downloadClear" class="ghost-btn">콘텐츠 캐시 비우기</button>
+        <p class="field-help">목록·소스 코드·표지와 미리 받은 회차 캐시를 비웁니다. 읽기 기록·읽던 위치·계정·설정은 유지됩니다. 브라우저 자체의 이미지 캐시와 앱 설치 파일은 포함하지 않습니다.</p>
+        <p id="downloadStatus" role="status"></p>
+      </section>
       <section id="readerSettings" class="settings-section"><h3>읽기 설정</h3><p class="field-help">변경한 설정은 이 브라우저에 자동 저장되며 다른 작품에서도 유지됩니다.</p>
         <div id="comicSettings"><label>보기 방식<select id="comicMode"><option value="single">한 장</option><option value="spread">양면</option><option value="continuous">세로</option><option value="continuous-seamless">세로 · 이음새 없음</option></select></label>
         <label>읽기 방향<select id="comicDirection"><option value="ltr">왼쪽에서 오른쪽</option><option value="rtl">오른쪽에서 왼쪽</option></select></label>

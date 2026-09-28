@@ -1,15 +1,16 @@
+import { downloadSettings, initializeDownloads } from '/download-settings.js';
 import { queueProgress } from '/account-sync.js';
 import { localStorage, indexedDB } from "/account-storage.js";
 import { connectorMode, connectorCall } from "/connector.js";
-import { assignImage, hydrateImages, disposeImages, prefetchImages } from "/connector-images.js";
+import { assignImage, hydrateImages, disposeImages, prefetchImages, clearImageCache } from "/connector-images.js";
 import { runBrowserSource } from "/source-runtime.js";
 import { maximumRequestBytes } from "/host-config.js";
 import { createNovelReader } from "/novel-reader.js";
 import { renderLibraryHome } from "/library-home.js";
 import { createSourceManager } from "/source-manager.js";
 import { createMetadataCache, metadataCacheLifetime } from "/metadata-cache.js";
-import { localCache } from "/local-cache.js";
-import { coverKey, saveCover } from "/cover-cache.js";
+import { localCache, clearContentCache, trimContentCache } from "/local-cache.js";
+import { coverKey, saveCover, clearCovers } from "/cover-cache.js";
 import { createComicReader } from "/comic-reader.js";
 import { initializeUI, updateScreen, updateSourceTitle } from "/ui.js";
 import { expectScreen, showPending, hidePending, enterScreen, fadeInImages, checkedLabel } from "/transitions.js";
@@ -57,13 +58,13 @@ function stopWarmup() {
 }
 function scheduleWarmup(task) {
   stopWarmup();
-  if (document.hidden || !navigator.onLine || navigator.connection?.saveData || /(^|-)2g$/.test(navigator.connection?.effectiveType || '')) return;
+  if (!downloadSettings().prefetch || document.hidden || !navigator.onLine || navigator.connection?.saveData || /(^|-)2g$/.test(navigator.connection?.effectiveType || '')) return;
   const controller = new AbortController(); warmController = controller;
   const key = stateKey(), screen = view;
   warmTimer = setTimeout(async () => {
     if (controller.signal.aborted || activeInvocation || key !== stateKey() || screen !== view) return;
     try { await task(controller.signal); } catch { /* Speculation never replaces the current screen with an error. */ }
-  }, 1800);
+  }, 800);
 }
 addEventListener('visibilitychange', () => { if (document.hidden) stopWarmup(); });
 async function warmChapter(chapter, signal, page = 1) {
@@ -73,17 +74,19 @@ async function warmChapter(chapter, signal, page = 1) {
   const novel = selected.itemType === 2;
   const result = await invoke(novel ? 'html' : 'pages', novel ? { title: field(chapter, ['name','title']), chapterUrl } : {chapterUrl}, {background:true, signal});
   signal.throwIfAborted();
-  if (!novel) await prefetchImages(records(result).slice(Math.max(0,page-1), Math.max(0,page-1)+2).map(row => row.imageUrl), signal);
+  if (!novel) await prefetchImages(records(result).slice(Math.max(0,page-1), Math.max(0,page-1)+downloadSettings().pages).map(row => row.imageUrl), signal);
 }
 function warmRecent() {
   if (!selected.sourceId) return;
   scheduleWarmup(async signal => {
-    await invoke('list', {page:1, mode:'popular', filters:[]}, {background:true, signal});
+    const list = await invoke('list', {page:1, mode:'popular', filters:[]}, {background:true, signal});
     const item = allRecent().find(item => item.repositoryUrl === selected.repositoryUrl && item.sourceId === selected.sourceId);
-    if (!item) return;
-    const work = await invoke('detail', {workUrl:item.url}, {background:true, signal});
-    const chapter = records(work.chapters || work.episodes).find(row => field(row,['url','link']) === item.chapterUrl);
-    if (chapter) { const progress = await progressGet(item.chapterUrl); await warmChapter(chapter,signal,Number(progress.page)||1); }
+    if (item) {
+      const work = await invoke('detail', {workUrl:item.url}, {background:true, signal});
+      const chapter = records(work.chapters || work.episodes).find(row => field(row,['url','link']) === item.chapterUrl);
+      if (chapter) { const progress = await progressGet(item.chapterUrl); await warmChapter(chapter,signal,Number(progress.page)||1); }
+    }
+    await prefetchImages(records(list).slice(0,6).map(row => row.imageUrl), signal);
   });
 }
 
@@ -1215,10 +1218,20 @@ async function boot() {
     if (saved?.repositoryUrl === initial) { selected = { ...selected, ...saved }; updateSourceTitle(selected.sourceName || '소스'); renderSourceTabs(); }
     if (allRecent().length) {
       // Local history is immediately usable; entering a work resolves its source as needed.
-      show("recent"); renderRecent(); warmRecent();
-      void fetchCatalog(initial).then(catalog => {
-        if (selected.repositoryUrl !== initial || view !== 'recent') return;
+      show("recent"); renderRecent();
+      const generation = requestNo;
+      void fetchCatalog(initial).then(async catalog => {
+        if (requestNo !== generation || view !== 'recent') return;
         catalogSources = catalog.sources; sourceManager?.update(catalog);
+        const recent = allRecent().find(item => item.repositoryUrl === initial);
+        const source = catalog.sources.find(row => row.id === selected.sourceId)
+          || catalog.sources.find(row => row.id === recent?.sourceId) || catalog.sources[0];
+        if (!source) return;
+        selected = { repositoryUrl:initial, sourceId:source.id, sourceName:source.name, itemType:Number(source.itemType), version:source.version };
+        localStorage.setItem('moya-source-selection', JSON.stringify(selected));
+        updateSourceTitle(selected.sourceName); renderSourceTabs();
+        await metadataCache.ready;
+        if (requestNo === generation && view === 'recent') warmRecent();
       }).catch(() => {});
       return;
     }
@@ -1276,4 +1289,16 @@ addEventListener('moyami-synced', () => {
 });
 $("recentQuery").oninput = renderRecent;
 
+initializeDownloads({
+  changed: async () => {
+    stopWarmup(); await trimContentCache();
+    if (view === 'recent') warmRecent();
+    else if (view === 'reader' && activeChapter) scheduleWarmup(signal => warmChapter(currentChapters[activeChapter.index-1], signal));
+  },
+  clear: async () => {
+    stopWarmup();
+    metadataCache.clear(); chapterCache.clear(); clearImageCache();
+    await Promise.all([clearContentCache(), clearCovers()]);
+  },
+});
 boot();

@@ -87,10 +87,10 @@ export function initializeUI({ navigate, refresh }) {
       $('navigationDialog').close();
       $('settingsDialog').showModal();
       const key = button.dataset.settings;
-      const section = $(({ sources: 'sourceSettings', connection: 'connectionSettings', appearance: 'appearanceSettings', reader: 'readerSettings', account: 'accountSettings' })[key]);
+      const section = $(({ sources: 'sourceSettings', connection: 'connectionSettings', appearance: 'appearanceSettings', reader: 'readerSettings', account: 'accountSettings', downloads: 'downloadSettings' })[key]);
       for (const panel of document.querySelectorAll('.settings-section')) panel.hidden = panel !== section;
       for (const tab of document.querySelectorAll('.settings-tabs button')) tab.setAttribute('aria-current',String(tab.dataset.settings === key));
-      $('settingsTitle').textContent = ({sources:'확장 소스 관리',connection:'연결 설정',appearance:'화면 설정',reader:'읽기 설정',account:'계정'})[key];
+      $('settingsTitle').textContent = ({sources:'확장 소스 관리',connection:'연결 설정',appearance:'화면 설정',reader:'읽기 설정',account:'계정',downloads:'다운로드'})[key];
       $('settingsDialog').scrollTop = 0;
       dispatchEvent(new CustomEvent('moya-settings-open',{detail:key}));
       if (!wasOpen) $('settingsTitle').focus({preventScroll:true});

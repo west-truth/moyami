@@ -52,7 +52,7 @@ const server = createServer(async (req, res) => {
     } else if (url.pathname === '/fixture/image') {
       if (url.searchParams.get('generation') === '1') res.writeHead(410).end();
       else res.writeHead(200, { 'content-type': 'image/png' }).end(png);
-    } else if (['/', '/entry.js', '/account-storage.js', '/account-sync.js', '/pwa.js', '/local-cache.js', '/cover-cache.js', '/metadata-cache.js', '/library-home.js', '/transitions.js', '/source-manager.js', '/reader-fonts.js', '/novel-reader.js', '/comic-reader.js', '/ui.js', '/moya.css', '/moya-ui.css', '/moya-ui.js', '/branding/moya-wordmark.png', '/app.js', '/connector.js', '/connector-images.js', '/host-config.js', '/styles.css', '/source-runtime.js', '/runtime/source-worker.js', '/runtime/quickjs.wasm'].includes(url.pathname)) {
+    } else if (['/', '/entry.js', '/account-storage.js', '/account-sync.js', '/pwa.js', '/local-cache.js', '/download-settings.js', '/cover-cache.js', '/metadata-cache.js', '/library-home.js', '/transitions.js', '/source-manager.js', '/reader-fonts.js', '/novel-reader.js', '/comic-reader.js', '/ui.js', '/moya.css', '/moya-ui.css', '/moya-ui.js', '/branding/moya-wordmark.png', '/app.js', '/connector.js', '/connector-images.js', '/host-config.js', '/styles.css', '/source-runtime.js', '/runtime/source-worker.js', '/runtime/quickjs.wasm'].includes(url.pathname)) {
       const file = url.pathname === '/' ? 'index.html' : url.pathname.slice(1);
       let content = await readFile(new URL(`../public/${file}`, import.meta.url), (/\.(wasm|png)$/).test(file) ? undefined : 'utf8');
       // Make IDB commit overlap deterministic; no production behavior is replaced.
@@ -867,10 +867,63 @@ try {
     await page.locator('#recentFeatured .history-remove').click();assert.equal(await page.locator('#recentWorks .history-card').count(),0);
     await page.reload();await page.locator('#works .card').first().waitFor();
   });
+  await check('download settings persist, stop speculation, enforce cache limits and preserve reading data', async context => {
+    const page = await ready(context);
+    await page.locator('#works .card').first().click();
+    await page.locator('#chapters .chapter').nth(1).click();
+    await page.locator('#reader').waitFor();
+    await page.locator('#readerSettingsButton').click();
+    await page.locator('.settings-tabs [data-settings="downloads"]').click();
+    await page.locator('#downloadPrefetch').uncheck();
+    assert.equal(await page.locator('#downloadPages').isDisabled(),true);
+    const before = requests.length;
+    await page.waitForTimeout(1800);
+    assert.equal(requests.length,before,'disabled speculation sends no chapter requests');
+    await page.locator('#downloadPrefetch').check();
+    await page.locator('#downloadPages').selectOption('16');
+    await page.locator('#downloadPrefetch').uncheck();
+    await page.evaluate(async () => {
+      const {localCache} = await import('/local-cache.js');
+      const cache=localCache('download-test'), value='x'.repeat(9*1024*1024);
+      await cache.set('a',value,Date.now()+60000);await cache.set('b',value,Date.now()+60000);
+    });
+    await page.locator('#downloadCacheSize').selectOption('16');
+    await page.waitForFunction(()=>document.getElementById('downloadStatus').textContent.includes('저장했습니다'));
+    const count=await page.evaluate(async()=>(await(await import('/local-cache.js')).localCache('download-test').all()).length);
+    assert.equal(count,1,'reducing capacity evicts older cache entries immediately');
+    const saved=await page.evaluate(async()=>{
+      const {localStorage:s,indexedDB}=await import('/account-storage.js');
+      const recent=Object.keys(s).filter(key=>key.startsWith('moya-source-recent:')).map(key=>[key,s.getItem(key)]);
+      const db=await new Promise(resolve=>{const r=indexedDB.open('moya-source-lite',2);r.onsuccess=()=>resolve(r.result);});
+      const progress=await new Promise(resolve=>{const r=db.transaction('progress').objectStore('progress').getAll();r.onsuccess=()=>resolve(r.result);});db.close();
+      return {recent,progress};
+    });
+    await page.locator('#downloadClear').click();
+    await page.waitForFunction(()=>document.getElementById('downloadStatus').textContent.includes('캐시를 비웠습니다'));
+    assert.equal(await page.evaluate(async()=>(await(await import('/local-cache.js')).localCache('download-test').all()).length),0);
+    const after=await page.evaluate(async()=>{
+      const {localStorage:s,indexedDB}=await import('/account-storage.js');
+      const recent=Object.keys(s).filter(key=>key.startsWith('moya-source-recent:')).map(key=>[key,s.getItem(key)]);
+      const db=await new Promise(resolve=>{const r=indexedDB.open('moya-source-lite',2);r.onsuccess=()=>resolve(r.result);});
+      const progress=await new Promise(resolve=>{const r=db.transaction('progress').objectStore('progress').getAll();r.onsuccess=()=>resolve(r.result);});db.close();
+      return {recent,progress};
+    });
+    assert.deepEqual(after,saved);
+    await page.reload();await page.locator('#recent').waitFor();
+    await page.locator('.library-action[data-settings="appearance"]').click();
+    await page.locator('.settings-tabs [data-settings="downloads"]').click();
+    assert.equal(await page.locator('#downloadPrefetch').isChecked(),false);
+    assert.equal(await page.locator('#downloadPages').inputValue(),'16');
+    assert.equal(await page.locator('#downloadCacheSize').inputValue(),'16');
+    await page.setViewportSize({width:390,height:844});
+    assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth),true);
+    await page.screenshot({path:'.state/download-settings-mobile.png'});
+  });
   await check('recent warms browse and resume without navigation; next chapter reuses prepared content', async context => {
     await context.addInitScript(()=>Object.defineProperty(navigator,'onLine',{get:()=>true}));
     generation=2;const page=await ready(context);
     await page.locator('#works .card').first().click();await page.locator('#chapters .chapter').nth(1).click();await page.locator('#reader').waitFor();
+    await page.evaluate(async()=>(await import('/account-storage.js')).localStorage.removeItem('moya-source-selection'));
     await page.reload();await page.locator('#recent').waitFor();
     const prepared=page.waitForRequest(r=>r.url().endsWith('/api/runtime/prepare') && r.postDataJSON().action==='pages');
     await prepared; await page.waitForTimeout(800);

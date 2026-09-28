@@ -46,3 +46,12 @@ export async function saveCover(key, image) {
     });
   } catch { /* Storage quota or a cross-origin canvas must not interrupt reading. */ }
 }
+
+export async function clearCovers() {
+  const db = await open();
+  await new Promise((resolve, reject) => {
+    const tx = db.transaction('covers', 'readwrite');
+    tx.objectStore('covers').clear();
+    tx.oncomplete = resolve; tx.onerror = tx.onabort = () => reject(tx.error);
+  });
+}

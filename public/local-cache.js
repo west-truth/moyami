@@ -1,7 +1,8 @@
+import { downloadSettings } from '/download-settings.js';
 import { localStorage, indexedDB } from "/account-storage.js";
 // Disposable display/code cache. Reader progress and source preferences live elsewhere.
 const database = 'moya-source-cache';
-const maxBytes = 32 * 1024 * 1024, maxEntries = 256;
+const maxEntries = 256;
 let opening;
 function open() {
   if (!opening) opening = new Promise((resolve, reject) => {
@@ -13,9 +14,9 @@ function open() {
   }).catch(() => { opening = undefined; return null; });
   return opening;
 }
-async function transaction(mode, action) {
+async function transaction(mode, action, strict = false) {
   try {
-    const db = await open(); if (!db) return;
+    const db = await open(); if (!db) { if (strict) throw new Error('cache_unavailable'); return; }
     return await new Promise((resolve, reject) => {
       const tx = db.transaction('entries', mode), store = tx.objectStore('entries');
       let value;
@@ -23,7 +24,7 @@ async function transaction(mode, action) {
       tx.oncomplete = () => resolve(value);
       tx.onerror = tx.onabort = () => reject(tx.error);
     });
-  } catch { /* Cache unavailable/quota exceeded: reading still works. */ }
+  } catch (error) { if (strict) throw error; /* Cache failures never interrupt reading. */ }
 }
 export function localCache(namespace) {
   const id = key => JSON.stringify([namespace, key]);
@@ -39,6 +40,7 @@ export function localCache(namespace) {
       });
     },
     async set(key, value, expiresAt) {
+      const maxBytes = downloadSettings().cacheMiB * 1024 * 1024;
       const bytes = new TextEncoder().encode(JSON.stringify(value)).byteLength;
       if (bytes > maxBytes / 2 || expiresAt <= Date.now()) return;
       await transaction('readwrite', store => {
@@ -62,4 +64,20 @@ export function localCache(namespace) {
       }; });
     },
   };
+}
+
+export async function clearContentCache() {
+  await transaction('readwrite', store => store.clear(), true);
+}
+export async function trimContentCache() {
+  const limit = downloadSettings().cacheMiB * 1024 * 1024;
+  await transaction('readwrite', store => {
+    store.getAll().onsuccess = event => {
+      let bytes = 0;
+      for (const row of event.target.result.sort((a,b) => b.savedAt-a.savedAt)) {
+        if (row.expiresAt <= Date.now() || bytes + row.bytes > limit) store.delete(row.id);
+        else bytes += row.bytes;
+      }
+    };
+  });
 }
