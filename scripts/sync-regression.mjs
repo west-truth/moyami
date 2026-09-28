@@ -9,7 +9,7 @@ const dir=await mkdtemp(`${tmpdir()}/moyami-sync-browser-`);
 process.env.BOOTSTRAP_KEY=randomBytes(32).toString('hex');process.env.AUTH_FILE=`${dir}/auth.json`;
 for(const key of ['BROKER_STORE','COOKIE_SECURE','UPSTASH_REDIS_REST_URL','UPSTASH_REDIS_REST_TOKEN','KV_REST_API_URL','KV_REST_API_TOKEN'])delete process.env[key];
 const app=createApplication(),server=createServer((req,res)=>{app.handle(req,res).catch(()=>res.destroy());});await new Promise(resolve=>server.listen(0,'127.0.0.1',resolve));
-const base=`http://127.0.0.1:${server.address().port}`,repo='https://example.com/index.json',sourceKey=repo+'\n1',work='https://example.com/work',chapter='https://example.com/chapter';
+const base=`http://127.0.0.1:${server.address().port}`,repo='https://example.com/index.json',sourceKey=repo+'\n1',work='/__total_toki_manga__/work/123',chapter='/__total_toki_manga__/work/123/chapter/456';
 const browser=await chromium.launch({executablePath:process.env.MOYA_SOURCE_BROWSER_EXECUTABLE,headless:true});
 const contexts=[],errors=[];
 const source=`class DefaultExtension extends MProvider { getPopular(){return {list:[],hasNextPage:false};} getFilterList(){return [];} getSourcePreferences(){return [];} getDetail(){return {name:'Synced Work',imageUrl:'${base}/fixture-cover',chapters:[{name:'Chapter',url:'${chapter}'}]};} getPageList(){return Array(4).fill('${base}/fixture-cover');}}`;
@@ -28,6 +28,11 @@ try{
  assert.equal((await a.request.post(base+'/api/auth/register',{data:{...creds,key:process.env.BOOTSTRAP_KEY}})).status(),200);
  const pa=await open(a);
  await pa.evaluate(async({repo,sourceKey,work,chapter})=>{const {localStorage:s}=await import('/account-storage.js');s.setItem('moya-source-repositories',JSON.stringify([repo]));s.setItem('moya-source-pins',JSON.stringify([{repositoryUrl:repo,sourceId:'1',sourceName:'Fixture',itemType:0}]));s.setItem('moya-source-recent:'+sourceKey,JSON.stringify([{url:work,title:'Synced Work',chapterUrl:chapter,chapterTitle:'Chapter',sourceName:'Fixture',imageUrl:'data:image/png;base64,PRIVATE_COVER',updatedAt:100}]));s.setItem('moya-chapter-marks:'+sourceKey+'\n'+work,JSON.stringify({[chapter]:{read:false,updatedAt:100}}));s.setItem('moya-app-theme','sepia');s.setItem('reader-profile-private','LOCAL_ONLY');(await import('/account-sync.js')).queueProgress(sourceKey,chapter,{page:3,totalPages:4,updatedAt:100});(await import('/account-sync.js')).queueProgress(sourceKey,chapter+'/novel',{ratio:.5,readerAnchor:{bookId:'novel',contentRevisionId:'revision',sectionId:chapter+'/novel',blockIndex:12,blockId:'p12',offset:7},updatedAt:100});},{repo,sourceKey,work,chapter});
+ // A device with queued records rejected by the old server must recover without clearing data.
+ await pa.route('**/api/sync',route=>route.fulfill({status:400,json:{error:'invalid_sync'}}));
+ assert.equal(await flush(pa),false);
+ assert.ok(await stored(pa,'moya-source-recent:'+sourceKey));
+ await pa.unroute('**/api/sync');
  assert.equal(await flush(pa),true);
  const snapshot=await(await a.request.get(base+'/api/sync')).json();const bytes=JSON.stringify(snapshot);assert.equal(bytes.includes('PRIVATE_COVER'),false);assert.equal(bytes.includes('LOCAL_ONLY'),false);assert.equal(bytes.includes('sepia'),false);
  assert.equal((await b.request.post(base+'/api/auth/login',{data:creds})).status(),200);const pb=await open(b);

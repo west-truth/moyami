@@ -11,9 +11,12 @@ export function validateSync(input: any): { since: number; changes: SyncChange[]
     let key: unknown; try { key = JSON.parse(row.key); } catch { throw new Error('invalid_sync'); }
     if (!Array.isArray(key) || !['repo','pin','recent','progress','mark'].includes(key[0]) || key.length !== ({repo:2,pin:3,recent:4,progress:4,mark:5} as any)[key[0]]) throw new Error('invalid_sync');
     for (let i=1;i<key.length;i++) {
-      if (typeof key[i] !== 'string' || key[i].length > 4096) throw new Error('invalid_sync');
+      if (typeof key[i] !== 'string' || !key[i].length || key[i].length > 4096 || /[\u0000-\u001f\u007f]/.test(key[i])) throw new Error('invalid_sync');
       if (i===2) { if (!/^[\w-]{1,80}$/.test(key[i])) throw new Error('invalid_sync'); continue; }
-      let url: URL; try { url=new URL(key[i]); } catch { throw new Error('invalid_sync'); }
+      // Extensions also use relative paths as work/chapter identities. Validate
+      // against a dummy base without changing the identity sent back to them.
+      // Repository URLs still require an absolute HTTPS URL.
+      let url: URL; try { url=i===1 ? new URL(key[i]) : new URL(key[i], 'https://source.invalid/'); } catch { throw new Error('invalid_sync'); }
       if (!['https:','http:'].includes(url.protocol) || (i===1 && url.protocol!=='https:') || url.username || url.password) throw new Error('invalid_sync');
     }
     if (row.value===null) continue;

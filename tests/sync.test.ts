@@ -72,6 +72,30 @@ test('sync accepts only small reading metadata, never covers, secrets or reader 
  for(const value of [{imageUrl:'https://example.com/image'},{cover:'base64'},{password:'secret'},{fontSize:24},{readerAnchor:{unexpected:'text'}}])assert.throws(()=>validateSync({since:0,changes:[{key,base:0,value}]}),/invalid_sync/);
  assert.throws(()=>validateSync({since:0,changes:[{key:JSON.stringify(['repo','javascript:alert(1)']),base:0,value:{}}]}),/invalid_sync/);
 });
+test('source-relative work and chapter identities remain unchanged through sync', async()=>{
+ const repo='https://example.com/index.json',source='780920260914001';
+ const work='/__total_toki_manga__/work/123',chapter=work+'/chapter/456';
+ const changes=[
+  {key:JSON.stringify(['recent',repo,source,work]),base:0,value:{title:'작품',chapterUrl:chapter,updatedAt:1}},
+  {key:JSON.stringify(['progress',repo,source,chapter]),base:0,value:{page:3,totalPages:10,updatedAt:1}},
+  {key:JSON.stringify(['mark',repo,source,work,chapter]),base:0,value:{read:true,updatedAt:1}},
+ ];
+ for(const invalid of ['', 'javascript:alert(1)', 'data:text/html,test', 'file:///tmp/test', '/work\nother', 'https://user:password@example.com/work']) {
+  assert.throws(()=>validateSync({since:0,changes:[{...changes[0],key:JSON.stringify(['recent',repo,source,invalid])}]}),/invalid_sync/);
+ }
+ assert.throws(()=>validateSync({since:0,changes:[{key:JSON.stringify(['repo','/index.json']),base:0,value:{}}]}),/invalid_sync/);
+ const input=validateSync({since:0,changes});
+ assert.deepEqual(input.changes,changes);
+ const dir=await mkdtemp(`${tmpdir()}/moyami-relative-sync-`);
+ try {
+  const store=new FileAuthStore(`${dir}/auth.json`);
+  await store.call('syncWrite',{userId:'relative',...input});
+  const result=await store.call('syncRead',{userId:'relative',since:0,changes:[]});
+  assert.equal(result.rows[changes[0].key].value.chapterUrl,chapter);
+  assert.equal(result.rows[changes[1].key].value.page,3);
+  assert.equal(result.rows[changes[2].key].value.read,true);
+ } finally {await rm(dir,{recursive:true,force:true});}
+});
 test('local sync: isolation, CAS conflicts, deletion, delta reads, atomic quota',async()=>{
  const dir=await mkdtemp(`${tmpdir()}/moyami-sync-`);const store=new FileAuthStore(`${dir}/auth.json`);
  try{await exercise(store,store);assert.equal((await new FileAuthStore(`${dir}/auth.json`).call('syncRead',{userId:'alice',since:0,changes:[]})).revision,3);}finally{await rm(dir,{recursive:true,force:true});}
