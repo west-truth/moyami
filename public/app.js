@@ -12,6 +12,7 @@ import { localCache } from "/local-cache.js";
 import { coverKey, saveCover } from "/cover-cache.js";
 import { createComicReader } from "/comic-reader.js";
 import { initializeUI, updateScreen, updateSourceTitle } from "/ui.js";
+import { expectScreen, showPending, hidePending, enterScreen, fadeInImages, checkedLabel } from "/transitions.js";
 import { mountWorkView, mountFilters, mountReleases, mountPreferences, mountQuickJump, mountAutoReading, BrowserNavigation } from "/moya-ui.js";
 const $ = (id) => document.getElementById(id);
 const generatedClientId = () =>
@@ -273,12 +274,14 @@ function show(name) {
   }
   for (const id of ["login", "browse", "recent", "detail", "reader", "error"])
     $(id).hidden = id !== name;
+  const previous = view;
   view = name;
+  enterScreen(name, previous);
   if (name !== "reader") { autoViewport = undefined; mountAutoReading($("autoReadingRoot"), null); }
   if (name === "reader") rememberRecent();
   if (name === "detail") refreshReleases();
   updateScreen(name);
-  $("back").hidden = !["detail", "reader"].includes(name);
+  $("back").hidden = !["detail", "reader", "error"].includes(name);
   if (["error", "login"].includes(name)) $("settingsDialog").close();
   scrollTo(0, 0);
   rememberNavigation();
@@ -288,7 +291,15 @@ function focusReaderContent(node) {
   node.tabIndex = -1;
   node.focus({preventScroll:true});
 }
-function busy(text = "") {
+let pendingTimer;
+function busy(text = "", kind = "") {
+  clearTimeout(pendingTimer);
+  // Before the first screen renders every section is hidden: show the destination's placeholder.
+  if (text) showPending(kind, $(view).hidden ? "" : view);
+  // A follow-up request (catalog, then list) keeps the same placeholder instead of flashing.
+  else { delete document.body.dataset.pending; pendingTimer = setTimeout(hidePending, 60); }
+  // While another screen is opening, the back button cancels it.
+  $("back").hidden = !(["detail", "reader", "error"].includes(view) || (text && !$(view).hidden && !["refresh", "task"].includes(document.body.dataset.pending)));
   $("activity").textContent = "";
   $("loadingStatus").hidden = !text;
   $("loadingMessage").textContent = text;
@@ -371,6 +382,7 @@ function removeRecent(item) {
 async function openRecent(item, resume = false) {
   stopWarmup();
   rememberNavigation();
+  expectScreen({ screen: "detail", title: item.title, imageUrl: item.imageUrl, source: item.sourceName });
   try {
     if (item.repositoryUrl !== selected.repositoryUrl || item.sourceId !== selected.sourceId) {
       await sourceGate.catch(() => {}); await invocationQueue.catch(() => {});
@@ -484,7 +496,7 @@ async function invoke(action, params = {}, { refresh = false, background = false
   const cancel = () => abort.abort();
   signal?.addEventListener("abort", cancel, {once:true});
   if (signal?.aborted) abort.abort();
-  if (!background && !quiet) busy(({pages:"회차 이미지를 준비하는 중…",html:"본문을 불러오는 중…",detail:"작품 정보와 회차를 불러오는 중…",list:"작품을 불러오는 중…",preferences:"소스 설정을 확인하는 중…"})[action] || "불러오는 중…");
+  if (!background && !quiet) busy(({pages:"회차 이미지를 준비하는 중…",html:"본문을 불러오는 중…",detail:"작품 정보와 회차를 불러오는 중…",list:"작품을 불러오는 중…",preferences:"소스 설정을 확인하는 중…"})[action] || "불러오는 중…", action);
   try {
     if (id !== requestNo || key !== stateKey()) throw new DOMException("stale", "AbortError");
     const execute = async () => {
@@ -567,7 +579,8 @@ function renderFilters(definitions = []) {
 function renderMetadataTime(id, result) {
   const time = metadataTimes.get(result);
   $(id).hidden = !time;
-  $(id).textContent = time ? `${new Date(time).toLocaleString('ko-KR')} 확인 · 최신 정보는 상단 새로고침으로 확인하세요.` : '';
+  $(id).textContent = time ? checkedLabel(time) : '';
+  $(id).title = time ? `${new Date(time).toLocaleString('ko-KR')}에 확인한 정보입니다. 상단 새로고침으로 최신 정보를 불러옵니다.` : '';
 }
 function renderWorks(result, title, append = false) {
   listResult = result;
@@ -585,6 +598,8 @@ function renderWorks(result, title, append = false) {
   $("popular").setAttribute("aria-pressed", String(browseState.mode === "popular"));
   $("latest").setAttribute("aria-pressed", String(browseState.mode === "latest"));
   $("filterPanel").hidden = filters.length === 0;
+  $("clearBrowse").hidden = !["search", "filter"].includes(browseState.mode);
+  $("clearBrowse").textContent = browseState.mode === "filter" ? "필터 해제" : "검색 지우기";
   renderWorkCards(append ? works.slice($("works").querySelectorAll(".card").length) : works, append);
   if (!append) { renderFilters(filters); show("browse"); }
   else rememberNavigation();
@@ -602,6 +617,7 @@ function renderWorkCards(works, append = false) {
     button.innerHTML = `${cover}<span class="discovery-card-copy"><strong>${esc(field(work, ["name", "title"]) || "제목 없음")}</strong><span class="discovery-card-description">${esc(field(work, ["author", "subtitle"]))}</span></span>`;
     button.onclick = () => openDetail(field(work, ["link", "url"]));
     $("works").append(button);
+    fadeInImages(button);
     hydrateImages(button);
   }
 }
@@ -658,6 +674,9 @@ async function openDetail(workUrl, refresh = false) {
   retryOperation = () => openDetail(workUrl, true);
   try {
     await sourceGate.catch(() => {});
+    const listed = listSourceKey === stateKey() ? records(listResult).find(row => field(row, ["link", "url"]) === workUrl) : undefined;
+    const recent = readRecent().find(row => row.url === workUrl);
+    expectScreen({ title: field(listed, ["name", "title"]) || recent?.title, imageUrl: listed?.imageUrl || recent?.imageUrl, source: selected.sourceName });
     const work = await invoke("detail", { workUrl }, { refresh });
     renderDetail(work, workUrl);
   } catch (error) {
@@ -675,17 +694,40 @@ function renderDetail(work, workUrl) {
       imageUrl: work.imageUrl || listed?.imageUrl || recent?.imageUrl, author: field(work,["author","artist"]) || recent?.author,
     };
     currentChapters = records(work.chapters || work.episodes);
+    const actions = $("detailActions");
     $("workInfo").innerHTML =
-      `<div class="detail-hero-cover">${currentWork.imageUrl ? `<img ${imageAttribute(currentWork.imageUrl)} alt="">` : '<span class="cover-placeholder">표지 없음</span>'}</div><div class="detail-hero-copy"><span class="detail-status">${esc(selected.sourceName)}</span><h1>${esc(currentWork.title)}</h1><p class="detail-byline">${esc(work.author || "")}</p><p class="detail-description">${esc(work.description || "")}</p></div>`;
+      `<div class="detail-hero-cover">${currentWork.imageUrl ? `<img ${imageAttribute(currentWork.imageUrl)} alt="">` : '<span class="cover-placeholder">표지 없음</span>'}</div><div class="detail-hero-copy"><span class="detail-status">${esc(selected.sourceName)}</span><h1>${esc(currentWork.title)}</h1><p class="detail-byline">${esc(metadataText(work.author))}</p></div>`;
+    // The primary action sits beside the cover; the description follows so long synopses never push it away.
+    $("workInfo").querySelector(".detail-hero-copy").append(actions);
+    renderDescription(work.description);
     const cover = $('workInfo').querySelector('img'), key = coverKey(stateKey(), workUrl);
     if (cover) {
       cover.addEventListener('load', () => { void saveCover(key, cover); }, {once:true});
       if (cover.complete && cover.naturalWidth) void saveCover(key, cover);
     }
     renderMetadata(work);
+    fadeInImages($("workInfo"));
     hydrateImages($("workInfo"));
     show("detail");
 }
+function renderDescription(value) {
+  const text = typeof value === "string" ? value.trim() : "";
+  const box = $("workDescription");
+  box.hidden = !text;
+  $("workDescriptionText").textContent = text;
+  box.classList.remove("is-expanded");
+  $("workDescriptionToggle").hidden = true;
+  if (!text) return;
+  requestAnimationFrame(() => {
+    const node = $("workDescriptionText");
+    $("workDescriptionToggle").hidden = node.scrollHeight <= node.clientHeight + 2;
+  });
+}
+$("workDescriptionToggle").onclick = () => {
+  const expanded = $("workDescription").classList.toggle("is-expanded");
+  $("workDescriptionToggle").textContent = expanded ? "접기" : "더 보기";
+  $("workDescriptionToggle").setAttribute("aria-expanded", String(expanded));
+};
 function metadataText(value) {
   if (Array.isArray(value)) return value.filter(item => typeof item === "string").join(' · ');
   return typeof value === "string" ? value.trim() : "";
@@ -696,7 +738,6 @@ function renderMetadata(work) {
     ['형식', selected.itemType === 2 ? '소설' : '만화'], ['총 회차', `${currentChapters.length}화`],
     ['작가',metadataText(work.author)], ['그림',metadataText(work.artist)], ['연재 상태',status],
     ['장르',metadataText(work.genre || work.genres || work.tags)], ['다른 제목',metadataText(work.alternativeTitles || work.alternativeName)],
-    ['소스',selected.sourceName],
   ];
   $('workMetadata').replaceChildren();
   for (const [label,value] of values) {
@@ -706,8 +747,10 @@ function renderMetadata(work) {
   }
 }
 function chapterMetadata(chapter) {
-  const raw = chapter.dateUpload || chapter.uploadDate || chapter.date;
+  let raw = chapter.dateUpload || chapter.uploadDate || chapter.date;
   let date = '';
+  // Mangayomi sources report epoch milliseconds as a numeric string.
+  if (typeof raw === 'string' && /^\d{9,14}$/.test(raw.trim())) raw = Number(raw);
   if (typeof raw === 'string' && raw.length < 80) date = raw;
   if (typeof raw === 'number' && raw > 0) {
     const value = new Date(raw < 1e11 ? raw * 1000 : raw);
@@ -783,14 +826,17 @@ async function openReader(chapterUrl, chapterIndex = 0, targetAnchor) {
   if (!chapterUrl) return;
   const chapterSourceKey = stateKey();
   rememberNavigation();
+  const direction = view === "reader" && activeChapter && activeChapter.url !== chapterUrl ? (chapterIndex < activeChapter.index ? "next" : "previous") : undefined;
   activeChapter = { url: chapterUrl, index: chapterIndex };
   syncAutoReading(undefined);
   retryOperation = () => openReader(chapterUrl, chapterIndex);
-  $("readerProgress").textContent = "회차 불러오는 중";
+  $("readerProgress").textContent = "…";
+  $("readerProgress").setAttribute("aria-label", "회차 불러오는 중");
   $("readerWorkTitle").textContent = currentWork?.title || "읽기";
   $("readerChapterTitle").textContent = field(currentChapters[chapterIndex], ["name", "title"]);
   try {
     await sourceGate.catch(() => {});
+    expectScreen({ title: currentWork?.title, chapter: field(currentChapters[chapterIndex], ["name", "title"]), direction });
     if (readerCleanup) readerCleanup();
     readerCleanup = null;
     const savedProgress = await progressGet(chapterUrl, chapterSourceKey);
@@ -993,6 +1039,7 @@ $("searchForm").onsubmit = (event) => {
   if (query) search(query);
 };
 $("popular").onclick = popular;
+$("clearBrowse").onclick = () => { $("query").value = ""; if (browseState.mode === "filter") browseState.filters = []; popular(); };
 $("latest").onclick = () => browse("latest", 1);
 $("applyFilters").onclick = () => { browseState.filters = structuredClone(filterDraft); return browse("filter", 1); };
 $("loadMore").onclick = async () => {
@@ -1024,6 +1071,8 @@ $("acceptUpdate").onclick = () => {
   retryOperation?.();
 };
 $("back").onclick = () => {
+  // Cancel a screen that is still opening; in-place refreshes navigate back as usual.
+  if (["detail", "browse", "reader"].includes(document.body.dataset.pending) && view !== "reader") { cancelInvocation(); catalogAbort?.abort(); return; }
   cancelInvocation();
   if (view === "reader") {
     if (appNavigation?.backTo(saved => saved.view === 'detail' && saved.currentWork?.url === currentWork?.url && saved.selection.repositoryUrl === selected.repositoryUrl && saved.selection.sourceId === selected.sourceId)) return;
@@ -1034,7 +1083,7 @@ $("back").onclick = () => {
 };
 async function loadCatalog(repositoryUrl, remember = true, preferredSourceId, signal) {
   cancelInvocation();
-  busy("저장소 확인 중");
+  busy("저장소 확인 중", "catalog");
   catalogAbort?.abort();
   const controller = new AbortController(); catalogAbort = controller;
   const abort = () => controller.abort();
@@ -1155,6 +1204,7 @@ function showEmptyLibrary() {
   $('emptySources').hidden = false; updateSourceTitle('확장 소스');
 }
 async function boot() {
+  $("login").hidden = true;
   try {
     const saved = readSelection();
     const repositories = readRepositories();

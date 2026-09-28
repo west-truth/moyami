@@ -1,5 +1,6 @@
 import { assignImage, disposeImages } from '/connector-images.js';
 import { coverKey, readCover, saveCover } from '/cover-cache.js';
+import { fadeInImages } from '/transitions.js';
 
 const $ = id => document.getElementById(id);
 function cover(item) {
@@ -18,6 +19,7 @@ function cover(item) {
     image.hidden = true; fallback.hidden = false;
   };
   root.append(image);
+  fadeInImages(root);
   void readCover(key).then(blob => {
     if (!image.isConnected) return;
     if (blob) { cachedUrl = URL.createObjectURL(blob); image.src = cachedUrl; }

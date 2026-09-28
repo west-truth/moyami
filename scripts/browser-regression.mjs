@@ -52,7 +52,7 @@ const server = createServer(async (req, res) => {
     } else if (url.pathname === '/fixture/image') {
       if (url.searchParams.get('generation') === '1') res.writeHead(410).end();
       else res.writeHead(200, { 'content-type': 'image/png' }).end(png);
-    } else if (['/', '/entry.js', '/account-storage.js', '/account-sync.js', '/pwa.js', '/local-cache.js', '/cover-cache.js', '/metadata-cache.js', '/library-home.js', '/source-manager.js', '/reader-fonts.js', '/novel-reader.js', '/comic-reader.js', '/ui.js', '/moya.css', '/moya-ui.css', '/moya-ui.js', '/branding/moya-wordmark.png', '/app.js', '/connector.js', '/connector-images.js', '/host-config.js', '/styles.css', '/source-runtime.js', '/runtime/source-worker.js', '/runtime/quickjs.wasm'].includes(url.pathname)) {
+    } else if (['/', '/entry.js', '/account-storage.js', '/account-sync.js', '/pwa.js', '/local-cache.js', '/cover-cache.js', '/metadata-cache.js', '/library-home.js', '/transitions.js', '/source-manager.js', '/reader-fonts.js', '/novel-reader.js', '/comic-reader.js', '/ui.js', '/moya.css', '/moya-ui.css', '/moya-ui.js', '/branding/moya-wordmark.png', '/app.js', '/connector.js', '/connector-images.js', '/host-config.js', '/styles.css', '/source-runtime.js', '/runtime/source-worker.js', '/runtime/quickjs.wasm'].includes(url.pathname)) {
       const file = url.pathname === '/' ? 'index.html' : url.pathname.slice(1);
       let content = await readFile(new URL(`../public/${file}`, import.meta.url), (/\.(wasm|png)$/).test(file) ? undefined : 'utf8');
       // Make IDB commit overlap deterministic; no production behavior is replaced.

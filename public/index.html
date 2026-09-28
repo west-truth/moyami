@@ -25,7 +25,7 @@
         <button data-nav="recent"><span data-icon="book"></span><span>최근 읽기</span></button>
       </nav>
       <section><div class="sidebar-section-head"><span class="library-sidebar-label">소스</span><button class="mini-icon-btn" data-settings="sources" aria-label="소스 관리"><span data-icon="settings"></span></button></div>
-        <nav class="library-sidebar-list" aria-label="연결된 소스"><button data-nav="browse"><span data-icon="plug"></span><span id="sourceName">확장 소스</span></button></nav>
+        <nav class="library-sidebar-list" aria-label="연결된 소스"><button data-nav="browse" data-nav-passive><span data-icon="plug"></span><span id="sourceName">확장 소스</span></button></nav>
       </section>
     </div>
     <footer class="library-sidebar-footer"><button data-settings="appearance"><span data-icon="settings"></span><span>설정</span></button></footer>
@@ -68,30 +68,32 @@
       </section>
       <section id="browse" class="discovery-body discovery-source-view" hidden>
         <div id="emptySources" class="empty-state" hidden><h2>읽을 소스를 추가하세요</h2><p>확장 저장소 주소를 등록하고 원하는 만화·소설 소스를 선택할 수 있습니다.</p><button class="primary-btn" data-settings="sources">저장소 추가</button></div>
-        <div class="discovery-tab-row"><nav id="sourceTabs" class="discovery-tabs" aria-label="고정한 소스"></nav><button id="quickJump" class="ghost-btn">빠른 이동</button></div>
-        <div class="discovery-section-heading"><small>확장 소스</small><div class="discovery-section-title"><h2 id="browseSourceName">작품 탐색</h2></div></div>
-        <form id="searchForm" class="discovery-search"><span data-icon="search"></span><input id="query" type="search" placeholder="작품명 또는 작가 검색" aria-label="검색어" /><button class="primary-btn">검색</button></form>
-
-        <div class="discovery-source-modes"><button id="popular" class="ghost-btn" aria-pressed="true">인기</button><button id="latest" class="ghost-btn" aria-pressed="false">최신</button></div>
-        <details id="filterPanel" class="discovery-filters"><summary>필터</summary><div id="filters" class="sourcePreferences"></div><div class="discovery-filter-actions"><button id="applyFilters" class="primary-btn">필터 적용</button></div></details>
-        <div class="discovery-section-heading"><div class="discovery-section-title"><h2 id="listTitle">인기</h2></div></div>
-        <p id="browseUpdatedAt" class="field-help" hidden></p>
+        <div class="discovery-tab-row"><nav id="sourceTabs" class="discovery-tabs" aria-label="고정한 소스"></nav><button id="quickJump" class="ghost-btn" title="다른 저장소·소스로 이동하거나 탭에 고정합니다"><span data-icon="swap"></span><span>소스 전환</span></button></div>
+        <h2 id="browseSourceName" class="visually-hidden">작품 탐색</h2>
+        <form id="searchForm" class="discovery-search"><span data-icon="search"></span><input id="query" type="search" placeholder="작품명 또는 작가 검색" aria-label="검색어" enterkeyhint="search" /><button class="primary-btn">검색</button></form>
+        <div class="discovery-toolbar">
+          <div class="discovery-source-modes" role="group" aria-label="목록 종류"><button id="popular" class="ghost-btn" aria-pressed="true">인기</button><button id="latest" class="ghost-btn" aria-pressed="false">최신</button></div>
+          <details id="filterPanel" class="discovery-filters"><summary>필터</summary><div id="filters" class="sourcePreferences"></div><div class="discovery-filter-actions"><button id="applyFilters" class="primary-btn">필터 적용</button></div></details>
+        </div>
+        <div class="discovery-result-bar"><h2 id="listTitle">인기</h2><button id="clearBrowse" class="text-btn" type="button" hidden>검색 지우기</button><span id="browseUpdatedAt" class="updated-at" hidden></span></div>
         <div id="works" class="discovery-grid"></div>
         <div class="pagination"><span id="browseCount"></span><button id="loadMore" class="ghost-btn">더 불러오기</button><span id="loadMoreStatus" role="status"></span></div>
       </section>
       <section id="recent" class="history-home" hidden>
-        <div class="history-heading"><div><span class="eyebrow">MY READING</span><h2>최근 읽기</h2><p>읽던 작품을 이어서 만나보세요.</p></div><span id="recentCount"></span></div>
+        <h2 class="visually-hidden">최근 읽기</h2>
         <section id="recentFeatured" class="recent-band" aria-label="최근 읽던 작품" hidden></section>
-        <label class="discovery-search"><span data-icon="search"></span><input id="recentQuery" type="search" placeholder="작품 또는 소스 검색" aria-label="최근 읽기 검색" /></label>
+        <div class="history-toolbar"><label class="discovery-search"><span data-icon="search"></span><input id="recentQuery" type="search" placeholder="작품 또는 소스 검색" aria-label="최근 읽기 검색" /></label><span id="recentCount"></span></div>
         <div id="recentWorks" class="history-grid"></div>
         <div id="recentEmpty" class="empty-state"><h3 id="recentEmptyTitle"></h3><p id="recentEmptyHint"></p><button class="primary-btn" data-nav="browse">작품 탐색하기</button></div>
       </section>
       <section id="detail" class="book-detail-main" hidden>
         <div class="book-detail-hero"><div id="workInfo" class="detail-hero-body"></div></div>
-        <div id="workMetadata" class="work-metadata"></div><div class="detail-hero-actions"><button id="continueReading" class="primary-btn">첫 화 보기</button></div>
-        <p id="detailUpdatedAt" class="field-help" hidden></p>
+        <div id="detailActions" class="detail-hero-actions"><button id="continueReading" class="primary-btn">첫 화 보기</button><span id="detailUpdatedAt" class="updated-at" hidden></span></div>
+        <div id="workDescription" class="work-description" hidden><p id="workDescriptionText"></p><button id="workDescriptionToggle" class="text-btn" type="button" aria-expanded="false" hidden>더 보기</button></div>
+        <div id="workMetadata" class="work-metadata"></div>
         <div id="chapters"></div>
       </section>
+      <div id="pendingView" class="pending-view" aria-hidden="true" hidden></div>
       <section id="reader" hidden>
         <div id="pages" class="pages"></div><article id="novelText" class="novelText" hidden></article>
         <footer class="reader-bottombar always-visible" aria-label="읽기 조작">
@@ -102,7 +104,7 @@
           <button id="nextChapter" class="icon-btn reader-chapter-step" aria-label="다음 회차" title="다음 회차"><span data-icon="next"></span></button>
         </footer>
       </section>
-      <section id="error" class="center" hidden><h1>불러오지 못했습니다</h1><p id="errorText"></p><div class="error-actions"><button id="errorQuickJump" class="ghost-btn">빠른 이동</button><button class="ghost-btn" data-settings="sources">확장 소스 관리</button><button id="retry" class="primary-btn">다시 시도</button><button id="acceptUpdate" class="ghost-btn" hidden>확장 업데이트 허용</button><button class="ghost-btn" data-settings="connection">연결 설정</button></div></section>
+      <section id="error" class="center" hidden><h1>불러오지 못했습니다</h1><p id="errorText"></p><div class="error-actions"><button id="retry" class="primary-btn">다시 시도</button><button id="acceptUpdate" class="primary-btn" hidden>확장 업데이트 허용</button><button id="errorQuickJump" class="ghost-btn">다른 소스로 이동</button></div><p class="error-help">계속 실패하면 <button class="text-btn" data-settings="sources">확장 소스 관리</button> 또는 <button class="text-btn" data-settings="connection">연결 설정</button>을 확인하세요.</p></section>
     </main>
   </div>
   <dialog id="navigationDialog" class="navigation-dialog" aria-label="모야 메뉴"><div class="dialog-heading"><span class="app-wordmark" role="img" aria-label="MOYA"></span><button class="icon-btn" data-close="navigationDialog" aria-label="메뉴 닫기"><span data-icon="close"></span></button></div><div id="mobileNavigation"></div><footer class="library-sidebar-footer"><button data-settings="appearance"><span data-icon="settings"></span>설정</button></footer></dialog>

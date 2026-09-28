@@ -16,6 +16,7 @@ const icons = {
   close: '<path d="m6 6 12 12M6 18 18 6"/>',
   search: '<circle cx="10" cy="10" r="6"/><path d="m15 15 6 6"/>',
   refresh: '<path d="M20 8a8 8 0 1 0 0 8M20 3v5h-5"/>',
+  swap: '<path d="M4 8h14m-4-4 4 4-4 4M20 16H6m4-4-4 4 4 4"/>',
 };
 export function hydrateIcons(root = document) {
   for (const node of root.querySelectorAll('[data-icon]')) {
@@ -40,7 +41,7 @@ export function updateScreen(name) {
   $('headingIcon').hidden = name !== 'browse';
   if (name !== 'reader') $('readerSearchToggle').hidden = true;
   for (const button of document.querySelectorAll('[data-nav]')) {
-    const current = button.dataset.nav === name;
+    const current = button.dataset.nav === name && !button.hasAttribute('data-nav-passive');
     button.classList.toggle('active',current);
     if (current) button.setAttribute('aria-current','page'); else button.removeAttribute('aria-current');
   }
