@@ -7,7 +7,7 @@ export function downloadSettings() {
   return {
     prefetch: saved?.prefetch !== false,
     pages: [2, 8, 16].includes(saved?.pages) ? saved.pages : 8,
-    cacheMiB: [16, 32, 64].includes(saved?.cacheMiB) ? saved.cacheMiB : 32,
+    cacheMiB: [16, 32, 64, 128].includes(saved?.cacheMiB) ? saved.cacheMiB : 32,
   };
 }
 export function initializeDownloads({ changed, clear }) {

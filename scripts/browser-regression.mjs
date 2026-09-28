@@ -915,6 +915,13 @@ try {
     assert.equal(await page.locator('#downloadPrefetch').isChecked(),false);
     assert.equal(await page.locator('#downloadPages').inputValue(),'16');
     assert.equal(await page.locator('#downloadCacheSize').inputValue(),'16');
+    await page.locator('#downloadCacheSize').selectOption('128');
+    assert.equal(await page.evaluate(async()=>(await import('/download-settings.js')).downloadSettings().cacheMiB),128);
+    await page.reload();await page.locator('#recent').waitFor();
+    assert.equal(await page.evaluate(async()=>(await import('/download-settings.js')).downloadSettings().cacheMiB),128);
+    await page.locator('.library-action[data-settings="appearance"]').click();
+    await page.locator('.settings-tabs [data-settings="downloads"]').click();
+    assert.equal(await page.locator('#downloadCacheSize').inputValue(),'128');
     await page.setViewportSize({width:390,height:844});
     assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth),true);
     await page.screenshot({path:'.state/download-settings-mobile.png'});
