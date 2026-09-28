@@ -9,21 +9,23 @@ Moya의 UI와 리더를 바탕으로 만든 경량 만화·소설 웹 리더입�
 - 확장 저장소 직접 등록, 확장 코드·메타데이터의 브라우저 캐시
 - 아이디·비밀번호 로그인, 가입 키로만 가입, 관리자 초대
 - 같은 계정으로 로그인한 기기 사이에서 읽기 기록·이어읽기 위치·저장소 목록 동기화. 표지와 리더 설정은 기기마다 보관합니다.
+- 기다리는 동안에도 흐름이 끊기지 않는 화면: 작품을 누르면 제목과 표지가 먼저 보이고, 회차를 넘기면 다음 화 카드가 나타납니다. 불러오는 중 뒤로 가기를 누르면 보던 화면과 스크롤 위치로 그대로 돌아갑니다. 시스템의 ‘동작 줄이기’ 설정을 따릅니다.
 
-## 배포
+## 원터치 배포
 
-**[① 가입 키 만들기 → ② Vercel 배포 시작](https://west-truth.github.io/moyami/)**
+**[배포 가이드 열기 — ① 가입 키 만들기 → ② Vercel 배포 → ③ 관리자 가입](https://west-truth.github.io/moyami/)**
 
-배포 준비 화면이 열리지 않으면 [public/deploy.html](public/deploy.html)을 다운로드해서 브라우저로 열어도 됩니다. 키는 브라우저에서 무작위로 만들며 서버로 보내거나 배포 URL에 넣지 않습니다.
+가이드 화면의 버튼만 차례로 누르면 됩니다. 가입 키는 브라우저 안에서 만들어지며 서버로 보내거나 배포 주소에 넣지 않습니다. 가이드가 열리지 않으면 [public/deploy.html](public/deploy.html)을 내려받아 브라우저로 열어도 됩니다.
 
 [![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/clone?repository-url=https%3A%2F%2Fgithub.com%2Fwest-truth%2Fmoyami&env=BOOTSTRAP_KEY%2CSITE_NAME&envDescription=BOOTSTRAP_KEY%3A%20Generate%20and%20save%20a%20first-signup%20key%20using%20the%20setup%20page.%20SITE_NAME%3A%20Your%20app%20name.&envLink=https%3A%2F%2Fwest-truth.github.io%2Fmoyami%2F&envDefaults=%7B%22SITE_NAME%22%3A%22moyami%22%7D&products=%5B%7B%22type%22%3A%22integration%22%2C%22integrationSlug%22%3A%22upstash%22%2C%22productSlug%22%3A%22upstash-kv%22%2C%22protocol%22%3A%22storage%22%7D%5D)
 
-1. 준비 화면에서 **가입 키 생성**을 누르고 키를 복사하거나 파일로 보관합니다.
-2. **Vercel 배포 시작**을 누릅니다. GitHub·Vercel 계정을 연결하고 저장소·프로젝트 이름을 원하는 대로 정합니다.
-3. **Upstash Redis**를 연결하는 화면이 나오면 저장 공간을 하나 만듭니다. 로그인 계정과 읽기 기록을 보관하는 작은 온라인 저장 공간입니다. 무료로 시작하려면 요금제에서 **Free(무료)**를 선택하고, 화면의 동의·연결 버튼을 눌러 진행하세요.
-4. `BOOTSTRAP_KEY`에 보관한 키를 붙여 넣습니다. `SITE_NAME`은 원하는 앱 표시 이름입니다.
-5. 배포된 주소에서 첫 가입 키, 아이디, 비밀번호를 입력해 **관리자 계정**을 만듭니다. 다음 접속부터는 아이디·비밀번호만 사용합니다.
-6. **소스 관리 → 저장소 추가**에서 사용할 Mangayomi JS 저장소 주소를 직접 입력하고 소스를 선택합니다. 기본으로 설치되는 저장소나 소스는 없습니다.
+| 단계 | 할 일 | 입력하는 값 |
+| --- | --- | --- |
+| ① 가입 키 | 가이드에서 **가입 키 생성**을 누릅니다. 키가 자동으로 복사됩니다. **파일로 보관**도 눌러 두세요. | — |
+| ② 배포 | **Vercel 배포 시작**을 누르고 GitHub로 로그인합니다. 저장소 이름을 정하고, **Upstash** 저장 공간을 **Free** 요금제로 만듭니다. | `BOOTSTRAP_KEY`: ①의 키<br>`SITE_NAME`: 앱 이름 (기본값 `moyami`) |
+| ③ 가입 | 배포된 주소(`이름.vercel.app`)를 열어 **관리자 계정**을 만듭니다. 다음부터는 아이디·비밀번호만 씁니다. | ①의 키, 아이디, 비밀번호(10자 이상) |
+
+가입한 뒤 **설정 → 확장 소스 → 저장소 → 저장소 추가**에 사용할 Mangayomi JS 저장소 주소를 넣고 소스를 고르세요. 기본으로 들어 있는 저장소나 소스는 없습니다. 휴대폰에서는 브라우저 메뉴의 **홈 화면에 추가**로 앱처럼 쓸 수 있습니다.
 
 ### 앱을 열었는데 “저장 공간 연결이 필요합니다”라고 나오나요?
 
@@ -95,6 +97,61 @@ Vercel의 프로젝트 이름과 `*.vercel.app` 주소는 배포자가 정합니
 
 설치 패키지는 PC Chromium 계열·Firefox용 개발자 설치 ZIP을 제공합니다. Android Firefox와 iOS/iPadOS Safari의 일반 사용자 배포에는 각각 서명·Apple 배포 절차가 필요합니다. iPhone/iPad에서 사이트 자체가 서버 접근을 차단하면 PWA 설치만으로 해결되지 않습니다.
 
+## 업데이트와 문제 해결
+
+### 새 버전을 배포했는데 예전 화면이 보여요
+
+moyami는 설치형 앱(PWA)이라 화면 파일을 기기에 보관합니다. 열려 있는 탭이 서로 다른 버전의 파일을 섞어 쓰지 않도록, 새 버전은 **이 앱의 탭과 창을 모두 닫았다가 다시 열 때** 적용됩니다. 새로고침만으로는 바뀌지 않습니다.
+
+1. 이 앱을 연 브라우저 탭과 설치한 앱 창을 모두 닫습니다. 휴대폰은 최근 앱 목록에서도 밀어서 닫습니다.
+2. 다시 엽니다. 한 번에 안 바뀌면 한 번 더 닫았다 엽니다.
+
+그래도 안 되면 사이트 데이터를 지웁니다. 이 기기에만 있던 기록과 리더 설정도 함께 지워지지만, 동기화된 읽기 기록은 다시 로그인하면 돌아옵니다.
+
+| 기기 | 방법 |
+| --- | --- |
+| PC Chrome·Edge | 앱을 열고 F12 → **Application** → **Storage** → **Clear site data** → 새로고침 |
+| Android Chrome | 설정 → 사이트 설정 → 모든 사이트 → 내 앱 주소 → **삭제**. 홈 화면 앱은 아이콘을 길게 눌러 앱 정보 → 저장공간 → 데이터 삭제 |
+| iPhone·iPad | 설정 → Safari → 고급 → 웹사이트 데이터 → 내 앱 주소 검색 → 삭제. 홈 화면 앱은 아이콘을 지우고 다시 추가 |
+
+### 예전 접근 키 방식(moya-source-lite)에서 옮겨 올 때
+
+같은 Vercel 프로젝트에 moyami를 배포하면 접근 키 대신 계정 로그인으로 바뀝니다. 주소와 저장 공간(Upstash) 연결은 그대로 씁니다.
+
+1. 프로젝트의 **Settings → Environment Variables**에 `BOOTSTRAP_KEY`(가이드에서 생성)와 `SITE_NAME`을 추가합니다.
+2. 더 이상 쓰지 않는 `APP_ACCESS_KEY`는 지워도 됩니다. `APP_SECRET`은 moyami도 로그인 서명에 쓰므로 **그대로 둡니다**. 바꾸면 발급된 로그인이 모두 풀립니다.
+3. 다시 배포합니다. 아래 [기존 Vercel 프로젝트에 직접 배포하기](#기존-vercel-프로젝트에-직접-배포하기)를 참고하세요.
+4. 각 기기에서 위의 “예전 화면이 보여요” 방법으로 예전 화면을 정리합니다.
+5. 관리자 계정을 만들고 저장소를 다시 추가합니다. 예전 기록은 계정 없이 저장된 것이라 새 계정으로 옮겨지지 않습니다.
+
+### 원본 저장소의 새 버전 받기
+
+원터치 배포는 내 GitHub 계정에 이 저장소의 복사본을 만들고, Vercel은 그 복사본이 바뀔 때마다 자동으로 배포합니다. 새 버전을 받으려면 내 복사본에 원본 변경을 가져와 올립니다.
+
+```sh
+git clone https://github.com/내-계정/내-저장소.git && cd 내-저장소
+git remote add upstream https://github.com/west-truth/moyami.git
+git pull upstream main
+git push origin main   # Vercel이 자동으로 다시 배포합니다.
+```
+
+배포 후에는 위 “예전 화면이 보여요” 안내대로 앱을 닫았다 다시 여세요.
+
+## 기존 Vercel 프로젝트에 직접 배포하기
+
+GitHub 연결 없이 Vercel CLI로 이미 있는 프로젝트에 올릴 수도 있습니다. [Vercel 토큰](https://vercel.com/account/tokens)을 만들어 셸 환경변수로만 넣고, 저장소나 채팅에 붙여 넣지 마세요.
+
+```sh
+export VERCEL_TOKEN=...   # 셸에서만 사용
+npx vercel link --yes --project 내-프로젝트 --scope 내-팀 --token "$VERCEL_TOKEN"
+npx vercel pull --yes --environment=production --token "$VERCEL_TOKEN"
+# 로컬 빌드는 운영 주소를 알 수 없으므로 연결 확장용 주소를 직접 지정합니다.
+APP_URL=https://내-앱.vercel.app npx vercel build --prod --token "$VERCEL_TOKEN"
+npx vercel deploy --prebuilt --prod --token "$VERCEL_TOKEN"
+```
+
+`vercel pull`은 운영 환경변수를 `.vercel/`과 `.env.local`에 내려받습니다. 두 곳 모두 커밋하지 마세요. 배포가 잘못되면 Vercel 대시보드의 **Deployments**에서 이전 배포를 **Promote to Production**으로 되돌릴 수 있습니다.
+
 ## 로컬 실행
 
 Node.js 22가 필요합니다. 서버에 Chromium을 설치할 필요는 없습니다.
@@ -102,7 +159,7 @@ Node.js 22가 필요합니다. 서버에 Chromium을 설치할 필요는 없습�
 ```sh
 npm ci
 cp .env.example .env
-# .env의 BOOTSTRAP_KEY를 준비 화면에서 생성한 키로 채우세요.
+# .env의 BOOTSTRAP_KEY를 배포 가이드에서 생성한 키로 채우세요.
 npm run build
 node --env-file=.env --import tsx server/index.ts
 ```
@@ -127,7 +184,9 @@ MOYA_SOURCE_BROWSER_EXECUTABLE=/path/to/chromium npm run test:pwa
 APP_URL=https://reader.example.com npm run build:hosting
 ```
 
-`public/deploy.html`이 배포 도우미 원본이며 `npm run build:client`가 GitHub Pages용 `docs/index.html`을 갱신합니다. 키나 개인 환경설정은 커밋하지 않습니다.
+연결 확장 회귀 테스트(`npm run test:connector`)는 로컬에서 443 포트를 열기 때문에 관리자 권한이 필요합니다.
+
+`public/deploy.html`이 배포 가이드 원본이며 `npm run build:client`가 GitHub Pages용 `docs/index.html`을 갱신합니다. 키나 개인 환경설정은 커밋하지 않습니다.
 
 ## 라이선스
 
