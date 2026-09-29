@@ -14,7 +14,7 @@ export function queueSync(key,value){
   localStorage.setItem(storageKey,JSON.stringify({key,value,base:previous?.base??metadata().versions[key]??0,id:crypto.randomUUID()}));
   status('변경사항을 이 기기에 보관했습니다. 곧 동기화합니다.');later();
 }
-export function queueProgress(sourceKey,chapterUrl,value){queueSync(keyOf('progress',...sourceKey.split('\n'),chapterUrl),pick(value,['page','totalPages','ratio','readerAnchor','updatedAt']));}
+export function queueProgress(sourceKey,chapterUrl,value){queueSync(keyOf('progress',...sourceKey.split('\n'),chapterUrl),value===null?null:pick(value,['page','totalPages','ratio','readerAnchor','updatedAt']));}
 function storageRows(key,value){
   const rows=new Map(),data=parse(value,null);
   if(key==='moya-source-repositories'&&Array.isArray(data))for(const url of data)rows.set(keyOf('repo',url),{});

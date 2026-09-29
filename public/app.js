@@ -434,35 +434,37 @@ async function progressGet(chapterUrl, sourceKey = stateKey()) {
   });
 }
 async function progressSet(chapterUrl, value, sourceKey = stateKey()) {
-  const db = await openDb();
-  const key = progressKey(chapterUrl, sourceKey);
-  const progress = { ...value, updatedAt: Date.now() };
-  await new Promise((resolve, reject) => {
-    const tx = db.transaction("progress", "readwrite");
-    tx.objectStore("progress").put(progress, key);
-    tx.oncomplete = resolve;
-    tx.onerror = () => reject(tx.error);
-  });
-  queueProgress(sourceKey, chapterUrl, progress);
-  const entries = await new Promise((resolve) => {
-    const tx = db.transaction("progress");
-    const store = tx.objectStore("progress");
-    const keys = store.getAllKeys();
-    const values = store.getAll();
-    tx.oncomplete = () =>
-      resolve(keys.result.map((item, index) => [item, values.result[index]]));
-    tx.onerror = () => resolve([]);
-  });
-  if (entries.length > 200) {
-    entries.sort((a, b) => (a[1]?.updatedAt || 0) - (b[1]?.updatedAt || 0));
-    await new Promise((resolve) => {
+  return navigator.locks.request(`moya-progress:${sourceKey}`, async () => {
+    const db = await openDb();
+    const key = progressKey(chapterUrl, sourceKey);
+    const progress = { ...value, updatedAt: Date.now() };
+    await new Promise((resolve, reject) => {
       const tx = db.transaction("progress", "readwrite");
-      for (const [oldKey] of entries.slice(0, entries.length - 200))
-        tx.objectStore("progress").delete(oldKey);
+      tx.objectStore("progress").put(progress, key);
       tx.oncomplete = resolve;
-      tx.onerror = resolve;
+      tx.onerror = () => reject(tx.error);
     });
-  }
+    queueProgress(sourceKey, chapterUrl, progress);
+    const entries = await new Promise((resolve) => {
+      const tx = db.transaction("progress");
+      const store = tx.objectStore("progress");
+      const keys = store.getAllKeys();
+      const values = store.getAll();
+      tx.oncomplete = () =>
+        resolve(keys.result.map((item, index) => [item, values.result[index]]));
+      tx.onerror = () => resolve([]);
+    });
+    if (entries.length > 200) {
+      entries.sort((a, b) => (a[1]?.updatedAt || 0) - (b[1]?.updatedAt || 0));
+      await new Promise((resolve) => {
+        const tx = db.transaction("progress", "readwrite");
+        for (const [oldKey] of entries.slice(0, entries.length - 200))
+          tx.objectStore("progress").delete(oldKey);
+        tx.oncomplete = resolve;
+        tx.onerror = resolve;
+      });
+    }
+  });
 }
 async function withSourceLock(key, task, signal) {
   if (!navigator.locks) throw new Error("source_lock_unavailable");
@@ -777,6 +779,7 @@ async function changeChapterMarks(sourceKey, workUrl, urls, patch) {
 }
 async function refreshReleases() {
   const generation = ++releaseGeneration;
+  $('resetReadingPosition').disabled = true;
   const sourceKey = stateKey(), workUrl = currentWork?.url;
   if (!workUrl) return;
   const chapters = currentChapters;
@@ -797,6 +800,9 @@ async function refreshReleases() {
   });
   if (generation !== releaseGeneration || sourceKey !== stateKey() || workUrl !== currentWork?.url) return;
   const marks = readChapterMarks(sourceKey, workUrl);
+  $('resetReadingPosition').disabled = resettingReadingPosition || !(recent?.chapterUrl ||
+    Object.values(marks).some(mark=>typeof mark.read==='boolean') ||
+    chapters.some(chapter=>progress.has(`${sourceKey}\n${field(chapter,['url','link'])}`)));
   if (resumeIndex < 0 || (marks[recent?.chapterUrl]?.read === true && marks[recent.chapterUrl].updatedAt >= recent.updatedAt)) {
     const firstUnread = [...chapters.keys()].reverse().find(index => marks[field(chapters[index],["url","link"])]?.read !== true);
     const nextIndex = firstUnread ?? chapters.length - 1;
@@ -824,6 +830,48 @@ async function refreshReleases() {
     open: index => openReader(field(chapters[index], ["url", "link"]), index),
   });
 }
+let resettingReadingPosition = false;
+$('resetReadingPosition').onclick = async () => {
+  if (resettingReadingPosition || view !== 'detail' || !currentWork) return;
+  const sourceKey=stateKey(), work={...currentWork}, chapters=[...currentChapters];
+  if (!confirm(`「${work.title}」의 읽은 위치를 초기화할까요?\n\n이어 읽기 위치, 회차별 진행률과 읽음 표시가 초기화되며 동기화된 기기에도 반영됩니다. 북마크·메모와 회차 제목은 유지됩니다.`)) return;
+  resettingReadingPosition=true;
+  $('resetReadingPosition').disabled=true;
+  try {
+    await withSourceLock(sourceKey,()=>navigator.locks.request(`moya-progress:${sourceKey}`,async()=>{
+      const recentKey=`moya-source-recent:${sourceKey}`, marksKey=`moya-chapter-marks:${sourceKey}\n${work.url}`;
+      const recent=JSON.parse(localStorage.getItem(recentKey)||'[]'), marks=readChapterMarks(sourceKey,work.url);
+      const saved=recent.find(row=>row.url===work.url);
+      const urls=new Set([...chapters.map(chapter=>field(chapter,['url','link'])),...Object.keys(marks),saved?.chapterUrl].filter(Boolean));
+      const db=await openDb();
+      const removed=[];
+      await new Promise((resolve,reject)=>{
+        const tx=db.transaction('progress','readwrite'), store=tx.objectStore('progress');
+        const keys=store.getAllKeys();
+        keys.onsuccess=()=>{
+          const existing=new Set(keys.result);
+          for (const url of urls) {
+            const key=progressKey(url,sourceKey);
+            if (existing.has(key)) { store.delete(key);removed.push(url); }
+          }
+        };
+        tx.oncomplete=resolve;tx.onerror=()=>reject(tx.error);tx.onabort=()=>reject(tx.error);
+      });
+      for (const url of removed) queueProgress(sourceKey,url,null);
+      for (const mark of Object.values(marks)) { delete mark.read;delete mark.updatedAt; }
+      localStorage.setItem(marksKey,JSON.stringify(marks));
+      if (saved) {
+        delete saved.chapterUrl;delete saved.chapterTitle;saved.updatedAt=Date.now();
+        localStorage.setItem(recentKey,JSON.stringify(recent));
+      }
+    }));
+    notice(`「${work.title}」의 읽은 위치를 초기화했습니다.`);
+  } catch { notice('읽은 위치를 초기화하지 못했습니다. 다시 시도해 주세요.'); }
+  finally {
+    resettingReadingPosition=false;
+    if (view==='detail') await refreshReleases();
+  }
+};
 async function openReader(chapterUrl, chapterIndex = 0, targetAnchor) {
   if (!chapterUrl) return;
   const chapterSourceKey = stateKey();

@@ -51,6 +51,43 @@ try{
  await pb.locator('#recentFeatured .primary-btn').click();await pb.locator('#reader:not([hidden])').waitFor();await pb.waitForFunction(()=>document.getElementById('readerPage').value==='3');
  assert.equal(JSON.parse(await stored(pb,recentKey))[0].imageUrl,base+'/fixture-cover','resume refetches cover from source on the new device');
  await pb.locator('#back').click();await pb.locator('#detail:not([hidden])').waitFor();await flush(pb);await flush(pa);
+ // Reset only this work, preserve annotations, and propagate position deletions to another device.
+ const marksKey='moya-chapter-marks:'+sourceKey+'\n'+work;
+ await pb.evaluate(async({marksKey,chapter,sourceKey,work})=>{
+   const {localStorage:s}=await import('/account-storage.js');
+   const marks=JSON.parse(s.getItem(marksKey));marks[chapter].title='Custom chapter';s.setItem(marksKey,JSON.stringify(marks));
+   s.setItem('moya-novel-notes:'+work,'KEEP_NOTES');
+   s.setItem('moya-comic-profile:'+sourceKey+':'+work+':marks:'+chapter,'KEEP_BOOKMARKS');
+ },{marksKey,chapter,sourceKey,work});
+ const getProgress=(page,url)=>page.evaluate(async key=>{
+   const {indexedDB}=await import('/account-storage.js');
+   return new Promise(resolve=>{const req=indexedDB.open('moya-source-lite',2);req.onsuccess=()=>{const db=req.result,read=db.transaction('progress').objectStore('progress').get(key);read.onsuccess=()=>{db.close();resolve(read.result);};};});
+ },sourceKey+'\n'+url);
+ pb.once('dialog',dialog=>dialog.dismiss());await pb.locator('#resetReadingPosition').click();
+ assert.ok(await getProgress(pb,chapter),'cancel preserves position');
+ for(const width of [320,390,1280]) {
+   await pb.setViewportSize({width,height:900});
+   const primary=await pb.locator('#continueReading').boundingBox(),reset=await pb.locator('#resetReadingPosition').boundingBox();
+   assert.ok(reset.y>=primary.y+primary.height,'secondary action below primary');
+   assert.ok(reset.x>=0 && reset.x+reset.width<=width,'reset fits viewport');
+ }
+ await pb.screenshot({path:'/tmp/moyami-reset-desktop.png'});
+ await pb.setViewportSize({width:390,height:844});await pb.screenshot({path:'/tmp/moyami-reset-mobile.png'});
+ pb.once('dialog',dialog=>dialog.accept());await pb.locator('#resetReadingPosition').click();
+ await pb.waitForFunction(()=>document.getElementById('resetReadingPosition').disabled && document.getElementById('continueReading').textContent==='첫 화 보기');
+ assert.equal(await getProgress(pb,chapter),undefined);
+ assert.equal((await getProgress(pb,chapter+'/automatic')).page,7,'unrelated progress survives');
+ assert.equal((await getProgress(pb,chapter+'/novel')).readerAnchor.offset,7,'unrelated novel anchor survives');
+ assert.equal(JSON.parse(await stored(pb,marksKey))[chapter].title,'Custom chapter');
+ assert.equal(JSON.parse(await stored(pb,marksKey))[chapter].read,undefined);
+ assert.equal(await stored(pb,'moya-novel-notes:'+work),'KEEP_NOTES');
+ assert.equal(await stored(pb,'moya-comic-profile:'+sourceKey+':'+work+':marks:'+chapter),'KEEP_BOOKMARKS');
+ await flush(pb);await flush(pa);
+ assert.equal(await getProgress(pa,chapter),undefined,'reset reaches second device');
+ assert.equal(JSON.parse(await stored(pa,recentKey))[0].chapterUrl,undefined);
+ assert.equal(JSON.parse(await stored(pa,marksKey))[chapter]?.read,undefined);
+ await pb.locator('#continueReading').click();await pb.waitForFunction(()=>document.getElementById('readerPage').value==='1');
+ await pb.locator('#back').click();await pb.locator('#detail:not([hidden])').waitFor();await flush(pb);await flush(pa);
  // Concurrent different works merge, while deletion wins against a stale offline edit of the same work.
  await b.setOffline(true);await pb.evaluate(async({recentKey,work,chapter})=>{const {localStorage:s}=await import('/account-storage.js');s.setItem(recentKey,JSON.stringify([{url:work,title:'Offline stale',chapterUrl:chapter,updatedAt:200}]));},{recentKey,work,chapter});
  await pa.evaluate(async key=>(await import('/account-storage.js')).localStorage.setItem(key,'[]'),recentKey);assert.equal(await flush(pa),true);

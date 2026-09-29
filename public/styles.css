@@ -510,6 +510,9 @@ dialog[open]::backdrop { animation:screen-fade .2s ease; }
 .book-detail-hero { padding:22px 26px; }
 .detail-hero-copy .detail-hero-actions { margin:16px 0 0; }
 .detail-hero-actions .updated-at { margin-left:4px; }
+.detail-secondary-actions { display:flex; flex-wrap:wrap; align-items:center; gap:4px 14px; flex-basis:100%; grid-column:1 / -1; }
+.detail-secondary-actions .text-btn { color:var(--text-2); min-height:36px; }
+.detail-secondary-actions .text-btn:disabled { opacity:.45; cursor:default; text-decoration:none; }
 .work-description { margin:0 0 18px; padding:0 4px; }
 .work-description p { margin:0; max-width:760px; color:var(--text); font-size:14px; line-height:1.75; white-space:pre-line; overflow-wrap:anywhere; display:-webkit-box; -webkit-box-orient:vertical; -webkit-line-clamp:4; overflow:hidden; }
 .work-description.is-expanded p { display:block; }
