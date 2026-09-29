@@ -19,6 +19,8 @@ Mangayomi JavaScript 확장 소스로 만화와 소설을 찾아 읽는 개인�
 
 **[배포 가이드 열기](https://west-truth.github.io/moyami/)** 에서 버튼을 차례로 누르면 됩니다. 필요한 것은 GitHub 계정과 Vercel 계정(GitHub로 가입 가능)뿐입니다.
 
+원클릭 배포는 처음 설치하기 간편하지만, 이후 업데이트는 코드 병합이나 배포 권한 문제로 번거로울 수 있습니다.
+
 [![Vercel로 배포](https://vercel.com/button)](https://vercel.com/new/clone?repository-url=https%3A%2F%2Fgithub.com%2Fwest-truth%2Fmoyami&env=BOOTSTRAP_KEY%2CSITE_NAME&envDescription=BOOTSTRAP_KEY%3A%20%EB%B0%B0%ED%8F%AC%20%EA%B0%80%EC%9D%B4%EB%93%9C%EC%97%90%EC%84%9C%20%EC%83%9D%EC%84%B1%ED%95%9C%20%EC%B2%AB%20%EA%B0%80%EC%9E%85%20%ED%82%A4%20%2832%EC%9E%90%20%EC%9D%B4%EC%83%81%29.%20SITE_NAME%3A%20%EC%9B%90%ED%95%98%EB%8A%94%20%EC%95%B1%20%ED%91%9C%EC%8B%9C%20%EC%9D%B4%EB%A6%84.&envLink=https%3A%2F%2Fwest-truth.github.io%2Fmoyami%2F&envDefaults=%7B%22SITE_NAME%22%3A%22moyami%22%7D&products=%5B%7B%22type%22%3A%22integration%22%2C%22integrationSlug%22%3A%22upstash%22%2C%22productSlug%22%3A%22upstash-kv%22%2C%22protocol%22%3A%22storage%22%7D%5D)
 
 | 단계 | 할 일 | 입력하는 값 |
