@@ -24,6 +24,8 @@ try {
   assert.equal(await page.locator('#authSubmit').textContent(),'관리자 계정 만들기');
   assert.equal(catalogCalls,0);
   await credentials('owner','owner-password-123',process.env.BOOTSTRAP_KEY);await waitApp();
+  await page.locator('#recent:not([hidden])').waitFor();
+  await page.locator('#recentEmpty [data-nav="browse"]').click();
   await page.locator('#emptySources').waitFor();assert.equal(catalogCalls,0);
   await page.evaluate(async()=>{const {localStorage:s,indexedDB:db}=await import('/account-storage.js');s.setItem('moya-reader-secret-test','private');s.setItem('moya-app-theme','sepia');const request=db.open('account-probe',1);await new Promise((resolve,reject)=>{request.onupgradeneeded=()=>request.result.createObjectStore('data');request.onsuccess=()=>{request.result.close();resolve();};request.onerror=()=>reject(request.error);});});
   await settings();await page.locator('#createInvite').click();await page.locator('#inviteResult:not([hidden])').waitFor();const key=await page.locator('#inviteKey').inputValue();assert.ok(key.length>=32);
@@ -37,6 +39,8 @@ try {
   await page.locator('#logoutButton').click();await page.locator('#loginForm:not([hidden])').waitFor();await credentials('owner','owner-password-123');await waitApp();
   assert.equal(await page.evaluate(async()=>(await import('/account-storage.js')).localStorage.getItem('moya-reader-secret-test')),'private');
   assert.equal(await page.locator('html').getAttribute('data-theme'),'sepia');
+  await page.locator('#recent:not([hidden])').waitFor();
+  await page.locator('#recentEmpty [data-nav="browse"]').click();
   await page.locator('#emptySources button').click();await page.locator('#repositoryUrl').waitFor();assert.equal(await page.locator('#repositorySelect option').count(),0);
   await page.locator('[data-close="settingsDialog"]').click();await settings();await page.locator('#logoutButton').click();await page.locator('#loginForm:not([hidden])').waitFor();
   await mkdir('.state/auth-regression',{recursive:true});await page.screenshot({path:'.state/auth-regression/login-mobile.png',fullPage:true});

@@ -17,7 +17,7 @@ const digest=createHash('sha256').update(source).digest('hex');
 const png=Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+jRZkAAAAASUVORK5CYII=','base64');
 async function device(){const ctx=await browser.newContext({serviceWorkers:'block'});contexts.push(ctx);ctx.setDefaultTimeout(12000);ctx.on('page',p=>p.on('pageerror',e=>errors.push(e.message)));
  await ctx.route('**/api/catalog',r=>r.fulfill({json:{repositoryUrl:repo,sources:[{id:'1',name:'Fixture',itemType:0,lang:'ko'}]}}));
- await ctx.route('**/api/runtime/**',async r=>{const input=r.request().postDataJSON();let value={ok:true};if(r.request().url().endsWith('/prepare'))value={...input,token:input.action,source,codeDigest:digest,entry:{id:'1',itemType:0},timeoutMs:30000};if(r.request().url().endsWith('/finish'))value={...input.value,codeDigest:digest};await r.fulfill({json:value});});
+ await ctx.route('**/api/runtime/**',async r=>{const input=r.request().postDataJSON();let value={ok:true};if(r.request().url().endsWith('/prepare'))value={...input,token:input.action,source,codeDigest:digest,entry:{id:'1',itemType:0},timeoutMs:30000};if(r.request().url().endsWith('/finish')){value={...input.value,codeDigest:digest};if(input.token==='pages')value.result=value.result.map(page=>({imageUrl:page.url}));}await r.fulfill({json:value});});
  await ctx.route('**/fixture-cover',r=>r.fulfill({body:png,contentType:'image/png'}));return ctx;}
 const a=await device(),b=await device();
 const creds={username:'owner',password:'owner-password-123'};
@@ -98,4 +98,4 @@ try{
  await a.setOffline(true);await pa.evaluate(async()=>{const {localStorage:s}=await import('/account-storage.js');s.setItem('moya-source-repositories',JSON.stringify(['https://offline.example/index.json']));});assert.equal(await flush(pa),false);
  await a.setOffline(false);await pa.reload();await pa.locator('body[data-auth=ready]').waitFor();await flush(pa);await flush(pb);assert.deepEqual(JSON.parse(await stored(pb,'moya-source-repositories')),['https://offline.example/index.json']);
  assert.deepEqual(errors,[]);console.log('PASS: two devices sync records, positions, repositories and pins; omit images/settings; restore covers on resume; preserve offline changes; merge independent edits and propagate deletions');
-}finally{await Promise.all(contexts.map(c=>c.close()));await browser.close();app.close();server.closeAllConnections();await new Promise(resolve=>server.close(resolve));await rm(dir,{recursive:true,force:true});}
+}catch(error){for(const ctx of contexts)for(const p of ctx.pages())console.log('SYNC DIAGNOSTIC',JSON.stringify({errors,text:await p.locator('#errorText').textContent(),notice:await p.locator('#notice').textContent()}));throw error;}finally{await Promise.all(contexts.map(c=>c.close()));await browser.close();app.close();server.closeAllConnections();await new Promise(resolve=>server.close(resolve));await rm(dir,{recursive:true,force:true});}
