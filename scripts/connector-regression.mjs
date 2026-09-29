@@ -47,7 +47,7 @@ const web = createServer(async(req,res)=>{
       res.writeHead(200,{'content-type':'application/json'}).end(JSON.stringify(value));
     }
     else if(path === '/api/image'){serverRelayCalls++;res.writeHead(500).end();}
-    else if(path === '/reader' || /^\/(entry|account-storage|account-sync|pwa|local-cache|download-settings|cover-cache|metadata-cache|library-home|transitions|source-manager|(?:reader-fonts|novel-reader)|comic-reader|ui|app|source-runtime|connector|connector-images|host-config)\.js$/.test(path) || ['/styles.css','/moya.css', '/moya-ui.css', '/moya-ui.js','/branding/moya-wordmark.png'].includes(path) || ['/runtime/source-worker.js','/runtime/quickjs.wasm'].includes(path)) {
+    else if(path === '/reader' || /^\/(entry|account-storage|account-sync|pwa|local-cache|download-settings|image-diagnostics|cover-cache|metadata-cache|library-home|transitions|source-manager|(?:reader-fonts|novel-reader)|comic-reader|ui|app|source-runtime|connector|connector-images|host-config)\.js$/.test(path) || ['/styles.css','/moya.css', '/moya-ui.css', '/moya-ui.js','/branding/moya-wordmark.png'].includes(path) || ['/runtime/source-worker.js','/runtime/quickjs.wasm'].includes(path)) {
       const file=path==='/reader'?'/index.html':path;
       res.writeHead(200,{'content-type':file.endsWith('.png')?'image/png':file.endsWith('.js')?'text/javascript':file.endsWith('.wasm')?'application/wasm':file.endsWith('.css')?'text/css':'text/html'}).end(file === '/entry.js' ? (await readFile('public'+file,'utf8')).replace('selectAccount(account.id);','').replace('await startSync();','') : await readFile('public'+file));
     }
@@ -163,7 +163,9 @@ try {
  });
  await check('speculative connector images are bounded and reused by visible images',async()=>{
   await page.evaluate(async()=>{
-    const {prefetchImages,assignImage,flushImageQueue}=await import('/connector-images.js');
+    const {prefetchImages,assignImage,flushImageQueue,disposeImages,clearImageCache}=await import('/connector-images.js');
+    disposeImages(document.body);clearImageCache();
+    (await import('/image-diagnostics.js')).setImageDiagnostics(true);
     const urls=Array.from({length:17},(_,i)=>i+1).map(n=>'moya-image:'+encodeURIComponent(JSON.stringify({url:'https://example.com/image?warm='+n,headers:{Referer:'https://example.com/work'}})));
     await prefetchImages(urls,new AbortController().signal);
     await new Promise((resolve,reject)=>{
@@ -176,6 +178,19 @@ try {
   assert.equal(requests.filter(row=>row.url==='/image?warm=16').length,1);
   assert.equal(requests.filter(row=>row.url==='/image?warm=17').length,0);
   assert.equal(await page.locator('#warm-visible').evaluate(image=>image.naturalWidth),1);
+  const diagnostic=await page.evaluate(async()=>(await import('/image-diagnostics.js')).imageDiagnosticsSnapshot());
+  assert.equal(diagnostic.counts.connector,16);assert.equal(diagnostic.counts.cache,1);
+  assert.equal(diagnostic.counts.relay,0);assert.equal(diagnostic.counts.pending,0);
+  assert.ok(diagnostic.recent.some(row=>row.prefetch));assert.ok(!JSON.stringify(diagnostic).includes('example.com'));
+  await page.evaluate(async()=>{
+    const {assignImage,setImagePriority,flushImageQueue}=await import('/connector-images.js');
+    await new Promise((resolve,reject)=>{
+      const image=new Image();document.body.append(image);image.onload=()=>{image.remove();resolve();};image.onerror=reject;
+      assignImage(image,'moya-image:'+encodeURIComponent(JSON.stringify({url:'https://example.com/image?cover=1'})));
+      setImagePriority(image,3);flushImageQueue();
+    });
+  });
+  assert.equal(await page.evaluate(async()=>(await import('/image-diagnostics.js')).imageDiagnosticsSnapshot().counts.connector),16,'cover images are excluded');
   await page.locator('#warm-visible').evaluate(image=>image.remove());
  });
  await check('no uncaught UI exceptions' ,async()=>assert.deepEqual(errors,[]));

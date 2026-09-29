@@ -1,4 +1,5 @@
 import { localStorage } from '/account-storage.js';
+import { initializeImageDiagnostics } from './image-diagnostics.js';
 
 const key = 'moyami-download-settings';
 export function downloadSettings() {
@@ -12,6 +13,7 @@ export function downloadSettings() {
   };
 }
 export function initializeDownloads({ changed, clear }) {
+  initializeImageDiagnostics();
   const direct = document.getElementById('downloadDirectImages');
   const enabled = document.getElementById('downloadPrefetch');
   const pages = document.getElementById('downloadPages');

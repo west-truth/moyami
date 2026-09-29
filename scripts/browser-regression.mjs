@@ -56,7 +56,7 @@ const server = createServer(async (req, res) => {
     } else if (url.pathname === '/fixture/image') {
       if (url.searchParams.get('generation') === '1') res.writeHead(410).end();
       else res.writeHead(200, { 'content-type': 'image/png' }).end(png);
-    } else if (['/', '/entry.js', '/account-storage.js', '/account-sync.js', '/pwa.js', '/local-cache.js', '/download-settings.js', '/cover-cache.js', '/metadata-cache.js', '/library-home.js', '/transitions.js', '/source-manager.js', '/reader-fonts.js', '/novel-reader.js', '/comic-reader.js', '/ui.js', '/moya.css', '/moya-ui.css', '/moya-ui.js', '/branding/moya-wordmark.png', '/app.js', '/connector.js', '/connector-images.js', '/host-config.js', '/styles.css', '/source-runtime.js', '/runtime/source-worker.js', '/runtime/quickjs.wasm'].includes(url.pathname)) {
+    } else if (['/', '/entry.js', '/account-storage.js', '/account-sync.js', '/pwa.js', '/local-cache.js', '/download-settings.js', '/image-diagnostics.js', '/cover-cache.js', '/metadata-cache.js', '/library-home.js', '/transitions.js', '/source-manager.js', '/reader-fonts.js', '/novel-reader.js', '/comic-reader.js', '/ui.js', '/moya.css', '/moya-ui.css', '/moya-ui.js', '/branding/moya-wordmark.png', '/app.js', '/connector.js', '/connector-images.js', '/host-config.js', '/styles.css', '/source-runtime.js', '/runtime/source-worker.js', '/runtime/quickjs.wasm'].includes(url.pathname)) {
       const file = url.pathname === '/' ? 'index.html' : url.pathname.slice(1);
       let content = await readFile(new URL(`../public/${file}`, import.meta.url), (/\.(wasm|png)$/).test(file) ? undefined : 'utf8');
       // Make IDB commit overlap deterministic; no production behavior is replaced.
@@ -950,6 +950,7 @@ try {
   });
   await check('direct chapter images avoid relay bytes, support canvas fallback and respect the download setting', async context => {
     const page=await ready(context);const requests=[];
+    await page.evaluate(async()=>(await import('/image-diagnostics.js')).setImageDiagnostics(true));
     await page.route('**/api/image?*',route=>{
       const url=new URL(route.request().url());requests.push(url.searchParams.has('direct')?'direct':'relay');
       return url.searchParams.has('direct')?route.fulfill({status:302,headers:{location:base.replace('127.0.0.1','localhost')+'/fixture/direct-image','referrer-policy':'no-referrer'}}):route.fulfill({contentType:'image/png',body:png});
@@ -962,6 +963,7 @@ try {
     },id);
     await mount('direct-test');await page.waitForFunction(()=>document.getElementById('direct-test').naturalWidth===1);
     assert.deepEqual(requests,['direct'],'successful images never use server relay');
+    assert.equal(await page.evaluate(async()=>(await import('/image-diagnostics.js')).imageDiagnosticsSnapshot().counts.direct),1);
     const readable=await page.evaluate(async()=>{
       const image=document.getElementById('direct-test');
       return (await import('/connector-images.js')).requireReadableImage(image);
@@ -973,8 +975,13 @@ try {
     assert.equal(await page.locator('#downloadDirectImages').isChecked(),true);await page.locator('#downloadDirectImages').uncheck();await page.keyboard.press('Escape');
     await mount('relay-test');await page.waitForFunction(()=>document.getElementById('relay-test').naturalWidth===1);
     assert.deepEqual(requests,['direct','relay','relay']);assert.equal(await page.evaluate(()=>window.imageErrors),0);
+    const diagnostic=await page.evaluate(async()=>(await import('/image-diagnostics.js')).imageDiagnosticsSnapshot());
+    assert.equal(diagnostic.counts.direct,1);assert.equal(diagnostic.counts.relay,2);assert.equal(diagnostic.counts.crop,1);
+    assert.ok(diagnostic.recent.some(row=>row.reason==='disabled'));
+    assert.ok(!JSON.stringify(diagnostic).includes('ticket='));
     await page.reload();await page.locator('#recent:not([hidden])').waitFor();
     assert.equal(await page.evaluate(async()=>(await import('/download-settings.js')).downloadSettings().directImages),false);
+    assert.equal(await page.evaluate(async()=>(await import('/image-diagnostics.js')).imageDiagnosticsSnapshot().enabled),false);
   });
   await check('reader selects validated direct images and automatic crop reloads through the relay', async context => {
     generation=2;const page=await ready(context),imageRequests=[];
@@ -997,6 +1004,7 @@ try {
   });
   await check('direct image rejection and timeout fall back once; cancellation stops retries', async context => {
     const page=await ready(context);const requests=[];
+    await page.evaluate(async()=>(await import('/image-diagnostics.js')).setImageDiagnostics(true));
     await page.route('**/api/image?*',route=>{
       const url=new URL(route.request().url()),id=url.searchParams.get('ticket'),direct=url.searchParams.has('direct');requests.push(id+':'+(direct?'direct':'relay'));
       if(direct)return route.fulfill({status:302,headers:{location:base.replace('127.0.0.1','localhost')+'/fixture/direct-image?mode='+id}});
@@ -1015,6 +1023,43 @@ try {
     await page.waitForFunction(()=>document.getElementById('slow').naturalWidth===1,null,{timeout:10000});
     assert.equal(requests.filter(row=>row==='denied:relay').length,1);assert.equal(requests.filter(row=>row==='slow:relay').length,1);
     assert.equal(requests.includes('cancelled:relay'),false);assert.equal(await page.evaluate(()=>window.imageErrors),0,'intermediate failures do not break the reader');
+    const stats=await page.evaluate(async()=>(await import('/image-diagnostics.js')).imageDiagnosticsSnapshot().counts);
+    assert.equal(stats.direct,0);assert.equal(stats.relay,2);assert.equal(stats.error,1);assert.equal(stats.timeout,1);
+    assert.equal(stats.cancelled,1);assert.equal(stats.pending,0);
+  });
+  await check('image diagnostics require opt-in, clear on disable and reload, and fit mobile settings', async context => {
+    const page=await ready(context);
+    await page.route('**/api/image?*',route=>route.fulfill({contentType:'image/png',body:png}));
+    const mount=()=>page.evaluate(async()=>{
+      const image=new Image();document.body.append(image);
+      const {assignImage,flushImageQueue}=await import('/connector-images.js');
+      const loaded=new Promise(resolve=>image.onload=resolve);
+      assignImage(image,'/api/image?ticket=private-ticket',{priority:1});flushImageQueue();await loaded;
+    });
+    const snapshot=()=>page.evaluate(async()=>(await import('/image-diagnostics.js')).imageDiagnosticsSnapshot());
+    await mount();assert.equal((await snapshot()).enabled,false);assert.deepEqual((await snapshot()).recent,[]);
+    await page.locator('#appHeader [data-settings=appearance]').click();await page.locator('.settings-tabs [data-settings=downloads]').click();
+    assert.equal(await page.locator('#imageDiagnosticsEnabled').isChecked(),false);
+    assert.equal(await page.locator('#imageDiagnosticsPanel').isVisible(),false);
+    await page.locator('#imageDiagnosticsEnabled').check();await mount();
+    await page.waitForFunction(()=>document.getElementById('imageDiagnosticsSummary').textContent.includes('1건'));
+    assert.equal((await snapshot()).counts.relay,1);
+    assert.ok(!(await page.locator('#imageDiagnosticsPanel').textContent()).includes('private-ticket'));
+    await page.setViewportSize({width:375,height:812});
+    assert.equal(await page.locator('#imageDiagnosticsPanel').evaluate(el=>el.scrollWidth<=el.clientWidth),true);
+    await page.locator('#imageDiagnosticsSummary').scrollIntoViewIfNeeded();
+    await page.screenshot({path:'.state/image-diagnostics-mobile.png'});
+    await page.locator('#imageDiagnosticsReset').click();assert.equal((await snapshot()).counts.relay,0);
+    await page.evaluate(async()=>{
+      const d=await import('/image-diagnostics.js');window.finishOldDiagnostic=d.beginImageDiagnostic('direct');
+    });
+    await page.locator('#imageDiagnosticsReset').click();await page.evaluate(()=>window.finishOldDiagnostic('loaded'));
+    assert.equal((await snapshot()).counts.direct,0);assert.equal((await snapshot()).counts.pending,0);
+    await page.locator('#imageDiagnosticsEnabled').uncheck();await mount();
+    assert.equal((await snapshot()).enabled,false);assert.deepEqual((await snapshot()).recent,[]);
+    assert.equal(await page.locator('#imageDiagnosticsPanel').isVisible(),false);
+    await page.locator('#imageDiagnosticsEnabled').check();await page.reload();
+    await page.locator('#recent:not([hidden])').waitFor();assert.equal((await snapshot()).enabled,false);
   });
   await check('download settings persist, stop speculation, enforce cache limits and preserve reading data', async context => {
     const page = await ready(context);

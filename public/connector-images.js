@@ -1,10 +1,12 @@
 import { connectorCall } from './connector.js';
 import { downloadSettings } from './download-settings.js';
+import { beginImageDiagnostic } from './image-diagnostics.js';
 const states = new Map();
 let active = 0;
 const blobs = new Map();
 let blobBytes = 0;
 const alive = state => state.prefetch || state.image.isConnected;
+const diagnose = (state, route, reason = 'normal') => state.diagnose ? beginImageDiagnostic(route, reason, state.prefetch) : () => {};
 function forgetBlob(url) { const old = blobs.get(url); if (old) blobBytes -= old.blob.size; blobs.delete(url); }
 function cachedBlob(url) {
   const item = blobs.get(url);
@@ -46,6 +48,7 @@ function drain() {
     if ([...states.values()].some(other => other !== state && other.url === state.url && other.loading)) continue;
     const cached = state.request && cachedBlob(state.url);
     if (cached) {
+      diagnose(state, 'cache')('loaded');
       state.blob = URL.createObjectURL(cached); state.loaded = true; state.image.src = state.blob;
       continue;
     }
@@ -55,43 +58,56 @@ function drain() {
     if (!state.request) {
       let complete = false;
       let directTimer;
+      let diagnostic = () => {};
       const capture = Boolean(state.relayUrl);
-      const finish = () => {
+      const finish = (outcome = state.image.complete ? (state.image.naturalWidth ? 'loaded' : 'failed') : 'cancelled') => {
         if (complete) return; complete = true;
+        diagnostic(outcome);
         clearTimeout(directTimer);
         state.image.removeEventListener('load', loaded); state.image.removeEventListener('error', failed, capture);
         state.finishNative = undefined; state.loading = false; active--; queueMicrotask(drain);
       };
-      const fallback = () => {
+      const fallback = reason => {
+        diagnostic(reason === 'timeout' ? 'timeout' : 'failed');
+        diagnostic = diagnose(state, 'relay', reason);
+        state.relayReason = 'retry';
         clearTimeout(directTimer); state.usingDirect = false;
         state.url = state.relayUrl; state.image.src = state.url;
       };
-      const loaded = () => { state.loaded = true; finish(); };
+      const loaded = () => { state.loaded = true; finish('loaded'); };
       const failed = event => {
-        if (state.usingDirect) { event.stopImmediatePropagation(); fallback(); return; }
-        state.failed = true; finish();
+        if (state.usingDirect) { event.stopImmediatePropagation(); fallback('error'); return; }
+        state.failed = true; finish('failed');
       };
       state.finishNative = finish;
       state.image.addEventListener('load', loaded); state.image.addEventListener('error', failed, capture);
       if (state.relayUrl) {
-        if (!downloadSettings().directImages) state.url = state.relayUrl;
+        if (!downloadSettings().directImages) { state.url = state.relayUrl; state.relayReason = 'disabled'; }
         state.usingDirect = state.url !== state.relayUrl;
-        if (state.usingDirect) directTimer = setTimeout(fallback, 5000);
+        if (state.usingDirect) directTimer = setTimeout(() => fallback('timeout'), 5000);
+      }
+      if (state.url.startsWith('/api/image?')) {
+        diagnostic = diagnose(state, state.usingDirect ? 'direct' : 'relay', state.usingDirect ? 'normal' : state.relayReason || 'required');
+        if (state.relayReason === 'crop') state.relayReason = 'retry';
       }
       state.image.loading = 'eager'; state.image.src = state.url;
       continue;
     }
     state.abort = new AbortController();
     const signal = state.abort.signal;
+    const diagnostic = diagnose(state, 'connector');
+    signal.addEventListener('abort', () => diagnostic('cancelled'), {once:true});
     connectorCall('image', { request: state.request }, signal).then(reply => {
       if (signal.aborted || !alive(state) || states.get(state.image) !== state) return;
       const bytes = Uint8Array.from(atob(reply.bytes), c => c.charCodeAt(0));
       const blob = new Blob([bytes], { type: reply.contentType });
       rememberBlob(state.url, blob);
+      diagnostic('loaded');
       state.blob = URL.createObjectURL(blob);
       state.loaded = true; state.image.src = state.blob;
     }).catch(error => {
       if (signal.aborted || !alive(state) || states.get(state.image) !== state) return;
+      diagnostic('failed');
       state.failed = true; state.image.dispatchEvent(new Event('error'));
     }).finally(() => { active--; state.loading = false; drain(); });
   }
@@ -107,7 +123,7 @@ export function assignImage(image, url, { priority: initialPriority } = {}) {
     const request = url?.startsWith('moya-image:') ? JSON.parse(decodeURIComponent(url.slice('moya-image:'.length))) : undefined;
     let relayUrl;
     if (direct) { const parsed = new URL(url, location.origin); parsed.searchParams.delete('direct'); relayUrl = parsed.pathname + parsed.search; }
-    states.set(image, { image, url, relayUrl, request, priority: initialPriority, near: false, loading: false, loaded: false, failed: false }); observer.observe(image);
+    states.set(image, { image, url, relayUrl, request, diagnose: initialPriority !== undefined, priority: initialPriority, near: false, loading: false, loaded: false, failed: false }); observer.observe(image);
   } catch { queueMicrotask(() => image.dispatchEvent(new Event('error'))); }
 }
 // Cross-origin images display without CORS; canvas analysis needs a local response.
@@ -120,7 +136,7 @@ export function requireReadableImage(image) {
     queueMicrotask(() => {
       if (states.get(image) !== state || !alive(state)) return;
       release(state);
-      state.url = state.relayUrl; state.usingDirect = false; state.failed = false;
+      state.url = state.relayUrl; state.usingDirect = false; state.failed = false; state.relayReason = 'crop';
       drain();
     });
   }
