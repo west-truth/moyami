@@ -40,8 +40,9 @@ input{width:100%;min-height:44px;padding:10px 12px;border:1px solid var(--line);
 #key{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:.9rem}
 #status{min-height:1.6em;margin:10px 0 0;color:var(--ok);font-weight:600}
 .fields{margin:14px 0 0;padding:0;list-style:none;border:1px solid var(--line);border-radius:12px;overflow:hidden}
-.fields li{display:grid;grid-template-columns:140px 1fr;gap:12px;margin:0;padding:10px 14px;border-top:1px solid var(--line);font-size:.92rem}
+.fields li{display:grid;grid-template-columns:minmax(0,260px) minmax(0,1fr);gap:12px;margin:0;padding:10px 14px;border-top:1px solid var(--line);font-size:.92rem}
 .fields li:first-child{border-top:0}
+.fields li>*{min-width:0;overflow-wrap:anywhere}
 .fields b{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:.85rem;font-weight:600}
 ol,ul{padding-left:22px}
 li{margin:6px 0}
@@ -55,7 +56,8 @@ li{margin:6px 0}
 details{margin:12px 0;padding:14px 18px;border:1px solid var(--line);border-radius:12px;background:var(--panel)}
 summary{cursor:pointer;font-weight:650}
 footer{margin-top:40px;padding-top:20px;border-top:1px solid var(--line);color:var(--muted);font-size:.85rem}
-@media (max-width:520px){.step{padding:62px 16px 18px}.step::before{left:16px;top:16px}.fields li{grid-template-columns:1fr;gap:2px}button,.action{flex:1}.row .primary{flex-basis:100%}}
+@media (max-width:640px){.fields li{grid-template-columns:1fr;gap:4px}}
+@media (max-width:520px){.step{padding:62px 16px 18px}.step::before{left:16px;top:16px}button,.action{flex:1}.row .primary{flex-basis:100%}}
 </style>
 </head>
 <body>
