@@ -1188,6 +1188,50 @@ function readPinnedSources() {
   catch { return []; }
 }
 const sourceIdentity = source => JSON.stringify([source.repositoryUrl, source.sourceId]);
+const startScreenKey = 'moyami-start-screen';
+function readStartScreen() {
+  try {
+    const value = JSON.parse(localStorage.getItem(startScreenKey) || 'null');
+    return value && typeof value.repositoryUrl === 'string' && typeof value.sourceId === 'string' ? value : null;
+  } catch { return null; }
+}
+let startScreenRequest = 0;
+async function renderStartScreens() {
+  const generation = ++startScreenRequest;
+  const picker = $('startScreen'), repositories = readRepositories();
+  const saved = readStartScreen();
+  const choices = new Map();
+  const add = source => {
+    if (source?.sourceId && repositories.includes(source.repositoryUrl)) choices.set(sourceIdentity(source), source);
+  };
+  add(saved); readPinnedSources().forEach(add); add(selected);
+  const draw = () => {
+    const value = saved && choices.has(sourceIdentity(saved)) ? sourceIdentity(saved) : 'recent';
+    picker.replaceChildren(new Option('최근 읽기', 'recent'));
+    for (const [id, source] of choices) picker.add(new Option(`탐색 · ${source.sourceName || '소스'}`, id));
+    picker.value = value;
+  };
+  draw();
+  const results = await Promise.allSettled(repositories.map(repository => fetchCatalog(repository)));
+  if (generation !== startScreenRequest) return;
+  for (const result of results) if (result.status === 'fulfilled') {
+    const catalog = result.value;
+    for (const source of catalog.sources) add({repositoryUrl:catalog.repositoryUrl,sourceId:source.id,sourceName:source.name});
+  }
+  draw();
+}
+$('startScreen').onchange = () => {
+  ++startScreenRequest;
+  const value = $('startScreen').value;
+  if (value === 'recent') localStorage.removeItem(startScreenKey);
+  else {
+    const [repositoryUrl, sourceId] = JSON.parse(value);
+    localStorage.setItem(startScreenKey, JSON.stringify({repositoryUrl, sourceId, sourceName:$('startScreen').selectedOptions[0].textContent.replace(/^탐색 · /,'')}));
+  }
+};
+addEventListener('moya-settings-open', event => {
+  if (event.detail === 'appearance') void renderStartScreens();
+});
 function renderSourceTabs() {
   $("sourceTabs").replaceChildren();
   const pinned = readPinnedSources();
@@ -1264,30 +1308,37 @@ async function boot() {
     const initial = repositories.includes(saved?.repositoryUrl)
       ? saved.repositoryUrl
       : repositories[0];
-    if (!initial) { showEmptyLibrary(); return; }
-    if (saved?.repositoryUrl === initial) { selected = { ...selected, ...saved }; updateSourceTitle(selected.sourceName || '소스'); renderSourceTabs(); }
-    if (allRecent().length) {
-      // Local history is immediately usable; entering a work resolves its source as needed.
-      show("recent"); renderRecent();
-      const generation = requestNo;
-      void fetchCatalog(initial).then(async catalog => {
-        if (requestNo !== generation || view !== 'recent') return;
-        catalogSources = catalog.sources; sourceManager?.update(catalog);
-        const recent = allRecent().find(item => item.repositoryUrl === initial);
-        const source = catalog.sources.find(row => row.id === selected.sourceId)
-          || catalog.sources.find(row => row.id === recent?.sourceId) || catalog.sources[0];
-        if (!source) return;
-        selected = { repositoryUrl:initial, sourceId:source.id, sourceName:source.name, itemType:Number(source.itemType), version:source.version };
-        localStorage.setItem('moya-source-selection', JSON.stringify(selected));
-        updateSourceTitle(selected.sourceName); renderSourceTabs();
-        await metadataCache.ready;
-        if (requestNo === generation && view === 'recent') warmRecent();
-      }).catch(() => {});
-      return;
+    const start = readStartScreen();
+    if (start && repositories.includes(start.repositoryUrl)) {
+      try {
+        const catalog = await fetchCatalog(start.repositoryUrl);
+        if (catalog.sources.some(source => source.id === start.sourceId)) {
+          await metadataCache.ready;
+          await loadCatalog(start.repositoryUrl, false, start.sourceId);
+          await popular();
+          return;
+        }
+      } catch { /* Keep history available if the chosen source cannot be opened. */ }
+      notice('시작 소스를 열 수 없어 최근 읽기를 표시합니다.');
     }
-    await metadataCache.ready;
-    await loadCatalog(initial);
-    await popular();
+    if (!initial) { show("recent"); renderRecent(); return; }
+    if (saved?.repositoryUrl === initial) { selected = { ...selected, ...saved }; updateSourceTitle(selected.sourceName || '소스'); renderSourceTabs(); }
+    // Local history is immediately usable; entering a work resolves its source as needed.
+    show("recent"); renderRecent();
+    const generation = requestNo;
+    void fetchCatalog(initial).then(async catalog => {
+      if (requestNo !== generation || view !== 'recent') return;
+      catalogSources = catalog.sources; sourceManager?.update(catalog);
+      const recent = allRecent().find(item => item.repositoryUrl === initial);
+      const source = catalog.sources.find(row => row.id === selected.sourceId)
+        || catalog.sources.find(row => row.id === recent?.sourceId) || catalog.sources[0];
+      if (!source) return;
+      selected = { repositoryUrl:initial, sourceId:source.id, sourceName:source.name, itemType:Number(source.itemType), version:source.version };
+      localStorage.setItem('moya-source-selection', JSON.stringify(selected));
+      updateSourceTitle(selected.sourceName); renderSourceTabs();
+      await metadataCache.ready;
+      if (requestNo === generation && view === 'recent') warmRecent();
+    }).catch(() => {});
   } catch (error) {
     if (error.status === 401) show("login");
     else fail(error);
@@ -1306,7 +1357,11 @@ initializeUI({
     cancelInvocation(); catalogAbort?.abort();
     if (destination === "recent") { show("recent"); renderRecent(); warmRecent(); }
     else if (listResult && listSourceKey === stateKey()) renderWorks(listResult,browseTitle(browseState.mode,browseState.query));
-    else void popular();
+    else if (!selected.sourceId) {
+      const repository = readRepositories()[0];
+      if (!repository) showEmptyLibrary();
+      else void loadCatalog(repository).then(() => popular()).catch(fail);
+    } else void popular();
   },
 });
 sourceManager = createSourceManager({

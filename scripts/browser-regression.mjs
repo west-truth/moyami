@@ -104,11 +104,45 @@ async function ready(context) {
   const page = await context.newPage();
   page.on('pageerror',error=>console.error('UI ERROR:',error.message));
   await page.goto(base);
+  await page.locator('#recent:not([hidden])').waitFor();
+  await page.locator('[data-nav=browse]:visible').first().click();
   await page.locator('#works .card').first().waitFor();
   return page;
 }
 try {
   await mkdir('.state/ux-review', {recursive:true});
+  await check('start screen defaults to recent and remembers any catalog source; account layout has shared padding', async context => {
+    const page=await context.newPage();await page.goto(base);
+    await page.locator('#recent:not([hidden])').waitFor();
+    await page.locator('#appHeader [data-settings=appearance]').click();
+    assert.equal(await page.locator('#startScreen').inputValue(),'recent');
+    const target=JSON.stringify([repositoryUrl,'second-source']);
+    await page.waitForFunction(value=>[...document.querySelector('#startScreen').options].some(option=>option.value===value),target);
+    await page.locator('#startScreen').selectOption(target);
+    await page.reload();await page.locator('#works .card').first().waitFor();
+    assert.equal(await page.evaluate(()=>JSON.parse(localStorage.getItem('moya-source-selection')).sourceId),'second-source');
+    await page.locator('#appHeader [data-settings=appearance]').click();
+    assert.equal(await page.locator('#startScreen').inputValue(),target);
+    for(const width of [320,390,1280]) {
+      await page.setViewportSize({width,height:900});
+      await page.locator('.settings-tabs [data-settings=appearance]').click();
+      const expected=await page.locator('#appearanceSettings h3').first().boundingBox();
+      await page.locator('.settings-tabs [data-settings=account]').click();
+      const actual=await page.locator('#accountSettings h3').first().boundingBox();
+      assert.ok(Math.abs(actual.x-expected.x)<1,'account shares settings content inset');
+      assert.ok(await page.locator('#settingsDialog').evaluate(el=>el.scrollWidth<=el.clientWidth+1),'settings fit viewport');
+    }
+    await page.screenshot({path:'/tmp/moyami-account-desktop.png'});
+    await page.setViewportSize({width:390,height:844});await page.screenshot({path:'/tmp/moyami-account-mobile.png'});
+    await page.locator('.settings-tabs [data-settings=appearance]').click();
+    await page.locator('#startScreen').selectOption('recent');
+    await page.reload();await page.locator('#recent:not([hidden])').waitFor();
+    // A removed source must not silently activate some other source.
+    await page.evaluate(repositoryUrl=>localStorage.setItem('moyami-start-screen',JSON.stringify({repositoryUrl,sourceId:'removed-source'})),repositoryUrl);
+    await page.reload();await page.locator('#recent:not([hidden])').waitFor();
+    await page.evaluate(()=>localStorage.setItem('moya-source-repositories','[]'));
+    await page.reload();await page.locator('#recent:not([hidden])').waitFor();
+  });
   await check('startup skips options and repeated list/detail reuse metadata until explicit refresh', async context => {
     const start = requests.length;
     const page = await ready(context);
@@ -151,7 +185,7 @@ try {
     await page.locator('#workspaceContent[aria-busy=false]').waitFor();
     const start=requests.length;
     await page.route('**/api/catalog',route=>route.abort());
-    await page.reload(); await page.locator('#works .card').first().waitFor();
+    await page.reload(); await page.locator('#recent:not([hidden])').waitFor(); await page.locator('[data-nav=browse]:visible').first().click(); await page.locator('#works .card').first().waitFor();
     assert.equal(requests.length,start);
     await page.locator('#refreshList').click();
     await page.locator('#workspaceContent[aria-busy=false]').waitFor();
@@ -415,8 +449,10 @@ try {
     await page.getByLabel('테스트 만화 탭에 고정').click();
     await page.getByLabel('빠른 이동 닫기').click();
     await page.reload();
-    await page.locator('#works .card').first().waitFor();
+    await page.locator('#recent:not([hidden])').waitFor();
     assert.equal(await page.evaluate(() => JSON.parse(localStorage.getItem('moya-source-pins')).length), 1);
+    await page.locator('[data-nav=browse]:visible').first().click();
+    await page.locator('#works .card').first().waitFor();
     await page.locator('#quickJump').click();
     assert.equal(await page.getByLabel('테스트 만화 고정 해제').getAttribute('aria-pressed'), 'true');
     await page.keyboard.press('Escape');
@@ -536,6 +572,11 @@ try {
       [...document.querySelectorAll('#sourceCards .source-card')].find(node=>node.textContent.includes('다른 소스')).querySelector('button').click();
     });
     await page.waitForFunction(()=>document.getElementById('sourceName').textContent==='다른 소스'&&!document.getElementById('browse').hidden);
+    // Navigation can finish before the queued IDB position write commits.
+    await page.waitForFunction(() => new Promise(resolve => {
+      const request=indexedDB.open('moya-source-lite',2);
+      request.onsuccess=()=>{const db=request.result,read=db.transaction('progress').objectStore('progress').getAll();read.onsuccess=()=>{db.close();resolve(read.result.some(value=>Math.abs(value.ratio-.6)<.02));};};
+    }));
     const progress = await page.evaluate(async () => new Promise(resolve => {
       const request=indexedDB.open('moya-source-lite',2);
       request.onsuccess=()=>{const tx=request.result.transaction('progress'),store=tx.objectStore('progress'),keys=store.getAllKeys(),values=store.getAll();
@@ -556,7 +597,7 @@ try {
     const content=()=>page.locator('.reader-paginated-root.is-active .reader-paginated-page.is-current').first().textContent();
     const before=await content();await page.mouse.click(385,250);
     await page.waitForFunction(before=>document.querySelector('.reader-paginated-root.is-active .reader-paginated-page.is-current')?.textContent!==before,before);
-    assert.equal(await page.locator('.reader-paginated-root.is-active .reader-paragraph').first().evaluate(n=>getComputedStyle(n).userSelect),'none');
+    await page.waitForFunction(()=>{const paragraph=document.querySelector('.reader-paginated-root.is-active .reader-paragraph');return paragraph && getComputedStyle(paragraph).userSelect==='none';});
     await page.mouse.move(60,250);await page.mouse.down();await page.mouse.move(200,260,{steps:10});await page.mouse.up();
     assert.equal(await page.evaluate(()=>getSelection().toString()),'');
     await page.screenshot({path:'.state/ui/novel-pagination-mobile.png'});
@@ -773,7 +814,7 @@ try {
     await page.getByRole('menuitem',{name:'여기까지 읽음',exact:true}).click();
     await page.waitForFunction(() => document.querySelectorAll('.chapter-row.is-read').length === 3);
     assert.equal(await page.locator('#continueReading').textContent(),'4화부터 읽기');
-    await page.reload(); await page.locator('#works .card').first().click();
+    await page.reload(); await page.locator('#recent:not([hidden])').waitFor(); await page.locator('[data-nav=browse]:visible').first().click(); await page.locator('#works .card').first().click();
     await page.waitForFunction(() => document.querySelectorAll('.chapter-row.is-read').length === 3);
     await page.getByLabel('Chapter 2 더보기', {exact:true}).click();
     await page.getByRole('menuitem',{name:'안 읽음으로 변경',exact:true}).click();
@@ -854,7 +895,7 @@ try {
       }
       await route.fulfill({response,json:data});
     });
-    await page.goto(base); await page.locator('#works .card').first().waitFor();
+    await page.goto(base); await page.locator('#recent:not([hidden])').waitFor(); await page.locator('[data-nav=browse]:visible').first().click(); await page.locator('#works .card').first().waitFor();
     await page.locator('#loadMore').scrollIntoViewIfNeeded();
     await page.evaluate(()=>{window.firstCard=document.querySelector('#works .card'); window.listScroll=scrollY;});
     await page.locator('#loadMore').click();
@@ -901,7 +942,7 @@ try {
     const progress=await page.evaluate(()=>new Promise(resolve=>{const r=indexedDB.open('moya-source-lite',2);r.onsuccess=()=>{const q=r.result.transaction('progress').objectStore('progress').getAll();q.onsuccess=()=>resolve(q.result);};}));
     assert.ok(progress.length>0);
     await page.locator('#recentFeatured .history-remove').click();assert.equal(await page.locator('#recentWorks .history-card').count(),0);
-    await page.reload();await page.locator('#works .card').first().waitFor();
+    await page.reload();await page.locator('#recent:not([hidden])').waitFor();
   });
   await check('download settings persist, stop speculation, enforce cache limits and preserve reading data', async context => {
     const page = await ready(context);
