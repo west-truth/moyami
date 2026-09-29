@@ -73,8 +73,8 @@ test('sync accepts only small reading metadata, never covers, secrets or reader 
  assert.throws(()=>validateSync({since:0,changes:[{key:JSON.stringify(['repo','javascript:alert(1)']),base:0,value:{}}]}),/invalid_sync/);
 });
 test('source-relative work and chapter identities remain unchanged through sync', async()=>{
- const repo='https://example.com/index.json',source='780920260914001';
- const work='/__total_toki_manga__/work/123',chapter=work+'/chapter/456';
+ const repo='https://example.com/index.json',source='100000000000001';
+ const work='/__fixture_source__/work/123',chapter=work+'/chapter/456';
  const changes=[
   {key:JSON.stringify(['recent',repo,source,work]),base:0,value:{title:'작품',chapterUrl:chapter,updatedAt:1}},
   {key:JSON.stringify(['progress',repo,source,chapter]),base:0,value:{page:3,totalPages:10,updatedAt:1}},

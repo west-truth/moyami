@@ -9,7 +9,7 @@ const dir=await mkdtemp(`${tmpdir()}/moyami-sync-browser-`);
 process.env.BOOTSTRAP_KEY=randomBytes(32).toString('hex');process.env.AUTH_FILE=`${dir}/auth.json`;
 for(const key of ['BROKER_STORE','COOKIE_SECURE','UPSTASH_REDIS_REST_URL','UPSTASH_REDIS_REST_TOKEN','KV_REST_API_URL','KV_REST_API_TOKEN'])delete process.env[key];
 const app=createApplication(),server=createServer((req,res)=>{app.handle(req,res).catch(()=>res.destroy());});await new Promise(resolve=>server.listen(0,'127.0.0.1',resolve));
-const base=`http://127.0.0.1:${server.address().port}`,repo='https://example.com/index.json',sourceKey=repo+'\n1',work='/__total_toki_manga__/work/123',chapter='/__total_toki_manga__/work/123/chapter/456';
+const base=`http://127.0.0.1:${server.address().port}`,repo='https://example.com/index.json',sourceKey=repo+'\n1',work='/__fixture_source__/work/123',chapter='/__fixture_source__/work/123/chapter/456';
 const browser=await chromium.launch({executablePath:process.env.MOYA_SOURCE_BROWSER_EXECUTABLE,headless:true});
 const contexts=[],errors=[];
 const source=`class DefaultExtension extends MProvider { getPopular(){return {list:[],hasNextPage:false};} getFilterList(){return [];} getSourcePreferences(){return [];} getDetail(){return {name:'Synced Work',imageUrl:'${base}/fixture-cover',chapters:[{name:'Chapter',url:'${chapter}'}]};} getPageList(){return Array(4).fill('${base}/fixture-cover');}}`;

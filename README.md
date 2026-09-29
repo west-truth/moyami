@@ -24,10 +24,22 @@ Mangayomi JavaScript 확장 소스로 만화와 소설을 찾아 읽는 개인�
 | 단계 | 할 일 | 입력하는 값 |
 | --- | --- | --- |
 | ① 가입 키 | 가이드에서 **가입 키 생성**을 누릅니다. 키가 자동으로 복사됩니다. **파일로 보관**도 눌러 두세요. | — |
-| ② 배포 | **Vercel 배포 시작**을 누르고 GitHub로 로그인한 뒤, **Upstash** 저장 공간을 **Free** 요금제로 만듭니다. | `BOOTSTRAP_KEY`: ①의 키<br>`SITE_NAME`: 앱 이름 |
+| ② 배포 | **Vercel 배포 시작**을 누르고 GitHub로 로그인한 뒤, **Upstash** 저장 공간을 **Free** 요금제로 만듭니다. Free가 안 보이면 아래 [Fork로 배포하기](#free가-안-보일-때-fork로-배포하기)를 따르세요. | `BOOTSTRAP_KEY`: ①의 키<br>`SITE_NAME`: 앱 이름 |
 | ③ 가입 | 배포된 주소(`이름.vercel.app`)를 열어 **관리자 계정**을 만듭니다. | ①의 키, 아이디, 비밀번호(10자 이상) |
 
 가입 키는 브라우저 안에서 만들어지며 어디에도 전송되지 않습니다. 가이드 페이지가 열리지 않으면 [public/deploy.html](public/deploy.html)을 내려받아 브라우저로 열어도 됩니다.
+
+### Free가 안 보일 때: Fork로 배포하기
+
+이미 Upstash 저장 공간을 만든 적 있는 계정에서는 ②의 요금제 목록에 Free 없이 **Pay as you go**나 **Fixed** 같은 유료 요금제만 보일 수 있습니다. Pay as you go는 Free의 무료 사용량이 따로 남지 않고 처음부터 사용량만큼 요금이 붙으니 고르지 말고, 배포 창을 닫은 뒤 아래처럼 배포하세요. 배포 가이드의 **Free가 안 보일 때** 항목에서도 같은 순서를 따라 할 수 있습니다.
+
+| 단계 | 할 일 | 입력·복사하는 값 |
+| --- | --- | --- |
+| A 저장 공간 | [Upstash 콘솔](https://console.upstash.com/redis)에서 **Create Database**를 누르고 요금제를 **Free**로 만듭니다. 지역은 서울이 없으면 도쿄를 고릅니다. **REST API** 항목에서 주소와 토큰을 복사합니다. | `UPSTASH_REDIS_REST_URL`(`https://`로 시작)<br>`UPSTASH_REDIS_REST_TOKEN` |
+| B Fork | [moyami Fork하기](https://github.com/west-truth/moyami/fork)에서 **Create fork**를 누릅니다. | — |
+| C 배포 | [Vercel](https://vercel.com/new)에서 B의 저장소를 **Import**하고, **Environment Variables**에 네 값을 넣은 뒤 **Deploy**를 누릅니다. 빌드 설정은 그대로 둡니다. | `BOOTSTRAP_KEY`: ①의 키<br>`SITE_NAME`: 앱 이름<br>A의 주소와 토큰 |
+
+배포가 끝나면 ③처럼 가입합니다. 가이드의 **환경변수 한꺼번에 복사**를 누르면 네 값을 Vercel의 첫 **Key** 칸에 한 번에 붙여 넣을 수 있습니다.
 
 가입한 뒤 **설정 → 확장 소스 → 저장소 → 저장소 추가**에 쓸 Mangayomi JS 저장소 주소를 넣고 소스를 고르세요. 기본으로 들어 있는 저장소는 없습니다. 휴대폰에서는 브라우저 메뉴의 **홈 화면에 추가**로 앱처럼 쓸 수 있습니다.
 
@@ -68,6 +80,8 @@ Vercel에 배포해도 원본 사이트의 Cloudflare 인증이나 IP 차단은 
 - PC Chromium 계열·Firefox용 설치 파일(ZIP)을 제공합니다.
 - Android Firefox와 iPhone·iPad Safari는 확장 서명·배포 절차가 따로 필요합니다.
 
+소스가 HTTP로 받은 HTML·JSON에서 회차 정보를 읽는 방식은 지원합니다. 페이지의 JavaScript를 실행하는 WebView 호출은 지원하지 않습니다. 브라우저 연결 확장은 HTTP 요청을 내 브라우저로 보내는 기능이며, WebView 실행 기능을 추가하지는 않습니다. 앱에 특정 사이트 전용 수집 로직이나 기본 허용 사이트 목록은 포함하지 않습니다.
+
 ### 계정과 가입 키
 
 - 처음 만든 가입 키(`BOOTSTRAP_KEY`)는 첫 관리자 가입에만 쓰입니다.
@@ -87,12 +101,12 @@ Vercel에 배포해도 원본 사이트의 Cloudflare 인증이나 IP 차단은 
 4. **Deployments**에서 가장 최근 배포의 **⋯ → Redeploy**를 누릅니다.
 5. 끝나면 앱을 새로고침합니다. 가입 화면이 보이면 완료입니다.
 
-주소와 토큰은 Vercel이 자동으로 넣어 줍니다. 화면 이름이 다르면 [Vercel 저장 공간 안내](https://vercel.com/docs/marketplace-storage)를 참고하세요.
+주소와 토큰은 Vercel이 자동으로 넣어 줍니다. Free가 안 보이면 [Upstash 콘솔](https://console.upstash.com/redis)에서 Free 저장 공간을 만들고, **Settings → Environment Variables**에 `UPSTASH_REDIS_REST_URL`과 `UPSTASH_REDIS_REST_TOKEN`을 직접 넣은 뒤 다시 배포하세요. 화면 이름이 다르면 [Vercel 저장 공간 안내](https://vercel.com/docs/marketplace-storage)를 참고하세요.
 
 <details>
 <summary>연결했는데도 계속 나온다면</summary>
 
-**Settings → Environment Variables**에 아래 두 쌍 중 하나가 온전히 있어야 합니다. 값을 고쳤다면 다시 배포하세요. 토큰은 비밀번호처럼 다뤄 주세요.
+**Settings → Environment Variables**에 아래 두 쌍 중 하나가 온전히 있어야 합니다. Vercel의 저장 공간 연결은 `KV_REST_API_*`를, Upstash 콘솔에서 복사해 넣은 값은 `UPSTASH_REDIS_REST_*`를 씁니다. 주소는 `redis://`가 아니라 `https://`로 시작하는 REST 주소여야 합니다. 값을 고쳤다면 다시 배포하세요. 토큰은 비밀번호처럼 다뤄 주세요.
 
 | 주소 | 토큰 |
 | --- | --- |
@@ -121,7 +135,7 @@ moyami는 설치형 앱이라 화면 파일을 기기에 보관하고, **앱의 
 
 ### 새 버전 받기
 
-원터치 배포는 내 GitHub 계정에 이 저장소의 복사본을 만들고, Vercel은 그 복사본이 바뀔 때마다 다시 배포합니다. 새 버전은 원본 변경을 내 복사본으로 가져오면 됩니다.
+원터치 배포는 내 GitHub 계정에 이 저장소의 복사본을 만들고, Vercel은 그 복사본이 바뀔 때마다 다시 배포합니다. 새 버전은 원본 변경을 내 복사본으로 가져오면 됩니다. Fork로 배포했다면 GitHub에서 내 저장소를 열고 **Sync fork → Update branch**만 누르면 됩니다. 원터치 배포로 만든 복사본에는 이 버튼이 없으니 아래 명령을 씁니다.
 
 ```sh
 git clone https://github.com/내-계정/내-저장소.git && cd 내-저장소
@@ -194,7 +208,18 @@ npm run test:pwa
 APP_URL=https://reader.example.com npm run build:hosting   # Vercel과 같은 빌드
 ```
 
-`npm run test:connector`는 443 포트를 열어야 해서 관리자 권한이 필요합니다. 배포 가이드의 원본은 `public/deploy.html`이며, `npm run build:client`가 GitHub Pages용 `docs/index.html`로 복사합니다.
+`npm run test:connector`는 Chromium과 로컬 HTTPS 테스트 서버로 브라우저 연결 확장을 검증합니다. 배포 가이드의 원본은 `public/deploy.html`이며, `npm run build:client`가 GitHub Pages용 `docs/index.html`로 복사합니다.
+
+## 면책 조항
+
+moyami는 사용자가 직접 배포해 쓰는 리더 소프트웨어입니다.
+
+- **콘텐츠와 저장소를 제공하지 않습니다.** moyami에는 기본 확장 저장소가 없으며, 이 프로젝트는 만화·소설 등 어떤 콘텐츠도 호스팅·배포·추천하지 않습니다. 어떤 확장 저장소와 소스를 등록하고 어떤 콘텐츠에 접근할지는 전적으로 사용자가 정합니다.
+- **법령과 이용 약관은 사용자가 지켜야 합니다.** 저작권법을 비롯한 거주 국가의 법령과 원본 사이트의 이용 약관을 지킬 책임은 사용자에게 있습니다. 브라우저 연결 확장이나 프록시로 원본 사이트에 접속할 때도 같습니다. 권리자가 허락하지 않은 콘텐츠에 접근하거나 이를 공유하는 데 moyami를 쓰지 마세요.
+- **각 배포본은 배포한 사람이 운영합니다.** 제작자는 사용자가 배포한 앱을 운영·관리·감시하지 않으며, 그 앱에 저장된 계정과 읽기 기록에 접근할 수 없습니다. 초대한 다른 사용자의 이용을 포함해 배포본에서 일어나는 일은 그 배포본의 운영자가 책임집니다.
+- **외부 서비스의 요금과 약관은 각 서비스와 사용자 사이의 일입니다.** Vercel, Upstash, GitHub 등의 요금, 사용량 제한, 계정 조치에 대해 제작자는 책임지지 않습니다. 유료 요금제를 고르면 요금이 나올 수 있으니 요금제를 직접 확인하세요.
+- **보증과 책임의 제한**: moyami는 [Apache-2.0 라이선스](LICENSE) 제7조·제8조에 따라 “있는 그대로(AS IS)” 제공됩니다. 적용 법령에서 요구하거나 서면으로 별도 합의한 경우를 제외하고, 제작자는 보증을 제공하지 않으며 라이선스가 정한 범위에서 손해에 대한 책임을 제한합니다. 이 안내는 법령상 배제할 수 없는 책임까지 면제한다는 뜻이 아닙니다.
+- **권리 침해 문의**: 이 저장소의 코드나 문서가 권리를 침해한다고 생각되면 이슈로 알려 주세요. 개별 배포본이나 확장 소스에 관한 문의는 해당 운영자나 제공자에게 해 주세요.
 
 ## 라이선스
 

@@ -95,7 +95,7 @@ test('source parameters and Document.body/head support gallery-style sources', a
 test('binary source indexes preserve byte values while text stays Unicode', async () => {
   const {decodeHttpBody}=await import('../server/runtime/http-body.js');
   const bytes=Uint8Array.from([0,0x80,0x9f,0xff,0xc3,0xa9]);
-  assert.deepEqual([...decodeHttpBody(bytes,'application/x-nozomi')].map(c=>c.charCodeAt(0)),[...bytes]);
+  assert.deepEqual([...decodeHttpBody(bytes,'application/octet-stream')].map(c=>c.charCodeAt(0)),[...bytes]);
   assert.equal(decodeHttpBody(new TextEncoder().encode('한글'),'application/json'),'한글');
   assert.equal(decodeHttpBody(Uint8Array.from([0xc3,0xa9]),'text/plain;charset=utf-8'),'é');
   assert.throws(()=>decodeHttpBody(bytes,'text/plain;charset=not-a-charset'),/source_encoding_unsupported/);

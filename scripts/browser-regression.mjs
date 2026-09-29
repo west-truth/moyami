@@ -5,8 +5,8 @@ import { createServer } from 'node:http';
 import { readFile, mkdir, writeFile } from 'node:fs/promises';
 import { chromium } from 'playwright-core';
 
-const repositoryUrl = 'https://dc-toki-mangayomi-manga.pages.dev/index.min.json';
-const sourceId = '780920260914001';
+const repositoryUrl = 'https://repository.example/index.json';
+const sourceId = '100000000000001';
 const png = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+jRZkAAAAASUVORK5CYII=', 'base64');
 const requests = [];
 let generation = 0, fixturePageCount = 1, fixtureItemType = 0;
@@ -32,7 +32,7 @@ const server = createServer(async (req, res) => {
     } else if (url.pathname === '/api/catalog') {
       res.setHeader('content-type', 'application/json');
       let body=''; for await (const chunk of req) body += chunk; const input=JSON.parse(body);
-      res.end(JSON.stringify({ repositoryUrl: input.repositoryUrl, sources: [{ id: sourceId, name: 'TOTAL 토끼 만화', lang: 'ko', itemType: fixtureItemType },{id:'second-source',name:'다른 소스',lang:'en',itemType:fixtureItemType}], skipped: 0 }));
+      res.end(JSON.stringify({ repositoryUrl: input.repositoryUrl, sources: [{ id: sourceId, name: '테스트 만화', lang: 'ko', itemType: fixtureItemType },{id:'second-source',name:'다른 소스',lang:'en',itemType:fixtureItemType}], skipped: 0 }));
     } else if (url.pathname.startsWith('/api/runtime/')) {
       let body = '';
       for await (const chunk of req) body += chunk;
@@ -84,6 +84,10 @@ async function runGuest(page, source, action = 'headers', timeoutMs = 3000, http
       const timer = setTimeout(() => {worker.terminate();reject(new Error('worker did not stop'));}, timeoutMs + 5000);
       worker.onerror = error => {clearTimeout(timer);worker.terminate();reject(new Error(error.message));};
       worker.onmessage = ({data}) => {
+        if (data.type === 'http' && httpStatus === undefined) {
+          clearTimeout(timer);worker.terminate();reject(new Error('unexpected HTTP request'));
+          return;
+        }
         if (data.type === 'http' && httpStatus !== undefined) {
           worker.postMessage({ type: 'http-result', id: data.id, value: { statusCode: httpStatus,
             contentType: 'text/html', headers: {}, bytes: btoa('<html>Access denied</html>'), ...httpReply } });
@@ -210,7 +214,7 @@ try {
     await page.locator('#browse').waitFor();
     assert.equal(await page.locator('#browseSourceName').textContent(),'다른 소스');
     await page.locator('#quickJump').click();
-    await page.locator('#quickJumpRoot').getByText('TOTAL 토끼 만화',{exact:true}).click();
+    await page.locator('#quickJumpRoot').getByText('테스트 만화',{exact:true}).click();
     await page.locator('#error').waitFor(); assert.equal(await page.locator('#errorQuickJump').isVisible(),true);
   });
   await check('filter drafts do not change popular parameters and applying filters invalidates saved tab rules', async context => {
@@ -275,6 +279,38 @@ try {
     const result = await runGuest(page, 'class DefaultExtension extends MProvider {getHeaders(){while(true){}}}', 'headers', 200);
     assert.deepEqual(result, {type:'failure',code:'execution_timeout'});
     assert.equal(await page.evaluate(() => 2 + 2), 4);
+  });
+  await check('generic HTTP sources extract chapter pages from HTML and JSON', async context => {
+    const page = await ready(context);
+    const expected = ['https://example.com/page-2.jpg', 'https://example.com/page-1.jpg'];
+    for (const format of ['html', 'json']) {
+      const body = format === 'html'
+        ? '<html><body><img src="https://example.com/logo.jpg"><main>' + expected.map(url => `<img src="${url}">`).join('') + '</main></body></html>'
+        : JSON.stringify({pages:expected});
+      const source = `class DefaultExtension extends MProvider {
+        async getPageList(){
+          const response = await new Client().get('https://example.com/chapter');
+          return ${format === 'html' ? "new Document(response.body).select('main img').map(image => image.attr('src'))" : 'JSON.parse(response.body).pages'};
+        }
+      }`;
+      const result = await runGuest(page, source, 'pages', 3000, 200, {id:'fixture-http-source',itemType:0}, {
+        contentType: format === 'html' ? 'text/html' : 'application/json', bytes:Buffer.from(body).toString('base64')
+      });
+      assert.equal(result.type, 'result');
+      assert.deepEqual(result.value.result, expected.map(url => ({url,headers:{}})));
+    }
+  });
+  await check('WebView calls fail explicitly without making HTTP requests', async context => {
+    const page = await ready(context);
+    for (const invocation of [
+      "evaluateJavascriptViaWebview('https://example.com/chapter', {}, ['document.querySelectorAll(\"img\")'], 1000)",
+      "sendMessage('evaluateJavascriptViaWebview', JSON.stringify(['https://example.com/chapter', {}, ['document.title'], 1000]))"
+    ]) {
+      const result = await runGuest(page, `class DefaultExtension extends MProvider {
+        async getPageList(){return await ${invocation};}
+      }`, 'pages');
+      assert.deepEqual(result, {type:'failure',code:'source_browser_required'});
+    }
   });
   await check('upstream HTTP denial retains its cause when guest JSON parsing fails', async context => {
     const page = await ready(context);
@@ -375,14 +411,14 @@ try {
     await page.locator('#quickJump').click();
     await page.waitForTimeout(50);
     assert.notEqual(await page.evaluate(() => document.activeElement.tagName), 'INPUT');
-    await page.getByLabel('이동할 소스 검색').fill('TOTAL');
-    await page.getByLabel('TOTAL 토끼 만화 탭에 고정').click();
+    await page.getByLabel('이동할 소스 검색').fill('테스트 만화');
+    await page.getByLabel('테스트 만화 탭에 고정').click();
     await page.getByLabel('빠른 이동 닫기').click();
     await page.reload();
     await page.locator('#works .card').first().waitFor();
     assert.equal(await page.evaluate(() => JSON.parse(localStorage.getItem('moya-source-pins')).length), 1);
     await page.locator('#quickJump').click();
-    assert.equal(await page.getByLabel('TOTAL 토끼 만화 고정 해제').getAttribute('aria-pressed'), 'true');
+    assert.equal(await page.getByLabel('테스트 만화 고정 해제').getAttribute('aria-pressed'), 'true');
     await page.keyboard.press('Escape');
     assert.equal(await page.getByLabel('이동할 소스 검색').count(), 0);
   });
@@ -691,7 +727,7 @@ try {
     const page=await ready(context);
     await page.locator('#works .card').first().click();
     await page.waitForFunction(()=>document.querySelector('#workInfo img')?.naturalWidth===1);
-    await page.waitForFunction(async()=>Boolean(await (await import('/cover-cache.js')).readCover('https://dc-toki-mangayomi-manga.pages.dev/index.min.json\n780920260914001\nhttps://example.com/work')));
+    await page.waitForFunction(async()=>Boolean(await (await import('/cover-cache.js')).readCover('https://repository.example/index.json\n100000000000001\nhttps://example.com/work')));
     await page.locator('#chapters .chapter').first().click();await page.locator('#pages img').first().waitFor();
     await page.locator('#appHeader [data-settings=appearance]:visible, #readerSettingsButton:visible').click();await page.locator('#settingsDialog [data-settings=sources]').click();
     await page.locator('#sourceCards .source-card').filter({hasText:'다른 소스'}).getByRole('button',{name:'탐색하기'}).click();
@@ -704,7 +740,7 @@ try {
     await page.evaluate(()=>document.querySelector('#sidebar [data-nav="recent"]').click());
     await page.locator('#sidebar [data-nav=browse]').first().click();
     await page.locator('#works .card').first().filter({hasText:`List ${sourceId}`}).waitFor();
-    assert.equal(await page.locator('#sourceName').textContent(),'TOTAL 토끼 만화');
+    assert.equal(await page.locator('#sourceName').textContent(),'테스트 만화');
     await page.route('**/fixture/cover',route=>route.fulfill({status:410,body:'expired'}));
     await page.reload();await page.locator('#recent').waitFor();
     await page.waitForFunction(()=>document.querySelector('#recentFeatured img')?.naturalWidth===1);
@@ -765,7 +801,7 @@ try {
     await page.locator('#repositoryUrl').fill('https://extensions.example.test/index.json');
     await page.locator('#repositoryForm button').click();
     await page.waitForFunction(() => document.querySelector('#repositorySelect').value.includes('extensions.example.test'));
-    assert.match(await page.locator('#sourceName').textContent(),/TOTAL/);
+    assert.match(await page.locator('#sourceName').textContent(),/테스트 만화/);
     await page.locator('#sourceSearch').fill('다른');
     assert.equal(await page.locator('#sourceCards .source-card').count(),1);
     await page.locator('#sourceCards').getByRole('button',{name:'탐색하기',exact:true}).click();
@@ -776,7 +812,7 @@ try {
     await page.locator('#mobileTabs [data-nav=recent]').click();
     await page.screenshot({path:'.state/ux-review/recent-mobile.png'});
     await page.locator('#recentFeatured .primary-btn').click(); await page.locator('#reader').waitFor();
-    assert.equal(await page.locator('#sourceName').textContent(),'TOTAL 토끼 만화');
+    assert.equal(await page.locator('#sourceName').textContent(),'테스트 만화');
   });
   await check('long browse list restores its scroll position after detail and a settings layer', async context=>{
     const page=await ready(context);
@@ -853,7 +889,7 @@ try {
     await page.locator('#works .card').first().click();await page.locator('#chapters .chapter').first().click();await page.locator('#reader').waitFor();
     await page.evaluate(()=>{
       const key=Object.keys(localStorage).find(key=>key.startsWith('moya-source-recent:'));
-      localStorage.setItem(key.replace('780920260914001','second-source'),localStorage.getItem(key));
+      localStorage.setItem(key.replace('100000000000001','second-source'),localStorage.getItem(key));
       localStorage.setItem('moya-comic-settings','{"mode":"single"}');
     });
     await page.reload();await page.locator('#recentWorks .history-card').first().waitFor();
@@ -969,16 +1005,16 @@ try {
       await route.fulfill({response,json:data});
     });
     await page.locator('#quickJump').click();await page.getByLabel('빠른 이동 저장소').selectOption(other);
-    await page.locator('.discovery-quick-jump-row').filter({hasText:'다른 저장소 TOTAL'}).waitFor();
+    await page.locator('.discovery-quick-jump-row').filter({hasText:'다른 저장소 테스트 만화'}).waitFor();
     assert.equal(await page.evaluate(()=>JSON.parse(localStorage.getItem('moya-source-selection')).repositoryUrl),repositoryUrl);
     const activated=page.waitForRequest(r=>r.url().endsWith('/api/runtime/prepare')&&r.postDataJSON().repositoryUrl===other);
-    await page.locator('.discovery-quick-jump-row').filter({hasText:'다른 저장소 TOTAL'}).locator('button').first().click();
+    await page.locator('.discovery-quick-jump-row').filter({hasText:'다른 저장소 테스트 만화'}).locator('button').first().click();
     await activated; await page.locator('#workspaceContent[aria-busy=false]').waitFor();
     await page.locator('#browse .card').first().waitFor();
     await page.waitForFunction(url=>JSON.parse(localStorage.getItem('moya-source-selection')).repositoryUrl===url,other);
     assert.equal(requests.at(-1).repositoryUrl,other);
     await page.locator('#quickJump').click();await page.getByLabel('빠른 이동 저장소').selectOption(repositoryUrl);
-    await page.locator('.discovery-quick-jump-row').filter({hasText:'TOTAL 토끼'}).first().waitFor();
+    await page.locator('.discovery-quick-jump-row').filter({hasText:'테스트 만화'}).first().waitFor();
     await page.keyboard.press('Escape');
     assert.equal(await page.evaluate(()=>JSON.parse(localStorage.getItem('moya-source-selection')).repositoryUrl),other);
   });
@@ -1083,7 +1119,7 @@ try {
   });
   await check('browser adapter preserves variant metadata, Document body and binary HTTP responses', async context => {
     const page=await ready(context);
-    const output=await runGuest(page,`class DefaultExtension extends MProvider { async getHeaders(){const response=await new Client().get('https://example.com/index');const doc=new Document('<html><head><title>A</title></head><body><p>본문</p></body></html>');return {variant:JSON.parse(this.source.additionalParams).section,text:doc.body.selectFirst('p').text,bytes:[...response.body].map(c=>c.charCodeAt(0))};}}`,'headers',3000,200,{id:'1',itemType:0,additionalParams:'{"section":"webtoon"}'},{contentType:'application/x-nozomi',bytes:Buffer.from([0,128,159,255]).toString('base64')});
+    const output=await runGuest(page,`class DefaultExtension extends MProvider { async getHeaders(){const response=await new Client().get('https://example.com/index');const doc=new Document('<html><head><title>A</title></head><body><p>본문</p></body></html>');return {variant:JSON.parse(this.source.additionalParams).section,text:doc.body.selectFirst('p').text,bytes:[...response.body].map(c=>c.charCodeAt(0))};}}`,'headers',3000,200,{id:'1',itemType:0,additionalParams:'{"section":"webtoon"}'},{contentType:'application/octet-stream',bytes:Buffer.from([0,128,159,255]).toString('base64')});
     assert.equal(output.type,'result');assert.deepEqual(output.value.result,{variant:'webtoon',text:'본문',bytes:[0,128,159,255]});
   });
   console.log(JSON.stringify(results, null, 2));

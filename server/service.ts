@@ -1,5 +1,5 @@
 import { createHash } from "node:crypto";
-import { TOTAL_ENTRY, TOTAL_EXPECTED_SHA256 } from "./catalog/total.js";
+import type { MangayomiEntry } from "./contracts.js";
 import { CatalogService } from "./catalog/repository.js";
 import { compatibilityHttp } from "./network/http.js";
 import {
@@ -34,7 +34,7 @@ export class SourceService {
     this.catalogs = new CatalogService(outboundProxy);
   }
 
-  private loadSource(entry: typeof TOTAL_ENTRY, signal: AbortSignal) {
+  private loadSource(entry: MangayomiEntry, signal: AbortSignal) {
     const key = `${entry.sourceCodeUrl}\n${entry.version}`;
     if ((this.sourceExpiry.get(key) ?? 0) <= Date.now()) this.sources.delete(key);
     if (!this.sources.has(key)) {
@@ -59,12 +59,6 @@ export class SourceService {
             const digest = createHash("sha256")
               .update(response.bytes)
               .digest("hex");
-            if (
-              entry.id === TOTAL_ENTRY.id &&
-              entry.version === TOTAL_ENTRY.version &&
-              digest !== TOTAL_EXPECTED_SHA256
-            )
-              throw new Error("source_digest_changed");
             return { source: new TextDecoder().decode(response.bytes), digest };
           })
           .catch((error) => {

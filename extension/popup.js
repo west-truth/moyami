@@ -1,12 +1,14 @@
 const api = globalThis.browser ?? chrome;
-const defaults = ['https://sbxh9.com', 'https://newtoki1.org', 'https://toki32.com',
-  'https://wankyo83.github.io', 'https://dc-toki-mangayomi-total-toki-manga-test.pages.dev',
-  'https://dc-toki-mangayomi-media.pages.dev', 'https://dc-toki-mangayomi-novel.pages.dev'];
 const status = document.querySelector('#status');
 async function render() {
   const { pending = {} } = await api.storage.local.get('pending');
-  const origins = [...new Set([...Object.keys(pending), ...defaults])];
+  const origins = Object.keys(pending);
   const root = document.querySelector('#sites'); root.replaceChildren();
+  if (!origins.length) {
+    const empty = document.createElement('p');
+    empty.textContent = '아직 연결을 요청한 사이트가 없습니다. 리더에서 소스를 열면 필요한 사이트가 여기에 표시됩니다.';
+    root.append(empty);
+  }
   for (const origin of origins) {
     const row = document.createElement('section'), name = document.createElement('div'); name.textContent = origin; row.append(name);
     const allowed = await api.permissions.contains({ origins: [origin + '/*'] });

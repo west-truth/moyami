@@ -77,8 +77,8 @@ try {
   document.title = status.name || 'moyami'; $('siteName').textContent = status.name || 'moyami';
   if (!status.configured) {
     const needsStorage=status.missing.some(item=>item.includes('Redis'));
-    $('authIntro').textContent = needsStorage ? '계정과 읽기 기록을 보관할 저장 공간 연결이 필요합니다. 아래 안내에서 Vercel에 저장 공간을 연결하는 순서를 확인하세요.' : '첫 가입 키가 아직 설정되지 않았습니다. 아래 안내에서 키를 만들고 내 Vercel 프로젝트에 등록하세요.';
-    $('setupLink').href='/deploy.html#storage-help';
+    $('authIntro').textContent = needsStorage ? '계정과 읽기 기록을 보관할 저장 공간 연결이 필요합니다. 아래 안내에서 Upstash 저장 공간을 만들어 Vercel 프로젝트에 연결하는 순서를 확인하세요.' : '첫 가입 키가 아직 설정되지 않았습니다. 아래 안내에서 키를 만들고 내 Vercel 프로젝트에 등록하세요.';
+    $('setupLink').href=needsStorage?'/deploy.html#storage-help':'/deploy.html#key-help';
     $('setupLink').textContent='설정 방법을 단계별로 보기';
     $('setupLink').hidden = false; $('authRetry').hidden = false;
   } else if (status.user) {

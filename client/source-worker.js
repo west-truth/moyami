@@ -4,7 +4,6 @@ import releaseVariant from '@jitl/quickjs-wasmfile-release-sync';
 import { cbc } from '@noble/ciphers/aes.js';
 import { mangayomiBootstrap, mangayomiDispatch } from '../server/runtime/bootstrap.ts';
 import { validatePreferenceState } from '../server/runtime/preferences.ts';
-import { totalHttpCollector } from './total-http.js';
 
 const encode = value => new TextEncoder().encode(value);
 const limitJson = (value, maximum) => {
@@ -77,7 +76,9 @@ async function invoke(bundle) {
     if (method === 'compatibility.webview') {
       if (!Array.isArray(input?.scripts) || input.scripts.length > 32 || input.scripts.some(s => typeof s !== 'string' || s.length > 65536))
         throw new Error('invalid_source_invocation');
-      return totalHttpCollector(bundle, input, http);
+      // HTTP and HTML parsing are available through Client and Document.
+      // WebView scripts require a browser page environment this worker does not provide.
+      throw new Error('source_browser_required');
     }
     throw new Error('permission_denied');
   };
