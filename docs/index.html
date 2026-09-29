@@ -204,7 +204,21 @@ footer{margin-top:40px;padding-top:20px;border-top:1px solid var(--line);color:v
   <p><strong>Vercel 배포 시작으로 배포했다면</strong> 내 저장소가 Fork가 아닌 복사본이라 이 버튼이 없습니다. <a href="https://github.com/west-truth/moyami#새-버전-받기" target="_blank" rel="noopener noreferrer">README의 새 버전 받기</a> 명령으로 가져옵니다.</p>
   <p>Vercel이 연결한 저장소와 <strong>Production Branch가 main</strong>인지 확인하세요. 최신 기능은 원본의 main에 올라오며, 다른 작업 브랜치는 이전 코드일 수 있습니다. 새 배포의 브랜치·커밋과 <strong>Ready · Production</strong> 상태를 확인합니다.</p>
   <p><strong>Redeploy만으로 원본의 최신 코드를 가져오지는 않습니다.</strong> 선택한 기존 배포를 다시 빌드하는 기능입니다. 내 저장소 업데이트와 새 운영 배포를 먼저 확인하세요.</p>
+  <p><strong>Deployment Blocked</strong>와 커밋 작성자 권한 오류가 나오면 아래 <a href="#blocked-help">배포가 작성자 권한 때문에 막혔어요</a> 항목을 확인하세요.</p>
   <p class="hint">배포가 끝나면 아래 “예전 화면이 보여요” 안내대로 앱을 닫았다 엽니다.</p>
+</details>
+
+<details id="blocked-help">
+  <summary>배포가 작성자 권한 때문에 막혔어요 (Deployment Blocked)</summary>
+  <p><code>The deployment was blocked because the commit author did not have contributing access</code> 오류에 해당하는 안내입니다. Vercel Hobby의 비공개 저장소는 커밋 작성자가 프로젝트를 소유한 Hobby 계정과 연결되어 있어야 합니다. 원본 코드를 가져와도 작성자는 원본 개발자로 남을 수 있습니다. <a href="https://vercel.com/docs/deployments/troubleshoot-project-collaboration" target="_blank" rel="noopener noreferrer">Vercel 공식 안내</a></p>
+  <p><strong>먼저 내 저장소의 main에 최신 코드를 가져오세요.</strong> 아래 절차는 이미 가져온 코드를 본인 명의의 새 커밋으로 배포하도록 요청하는 방법입니다.</p>
+  <ol>
+    <li><strong>Vercel에 연결한 본인 GitHub 계정</strong>으로 로그인하고, 내 저장소에서 <strong>main → README.md → 연필(Edit)</strong>을 엽니다.</li>
+    <li>맨 아래에 <code>&lt;!-- deployment check --&gt;</code>를 추가합니다. 이미 있으면 주석 안에 날짜 등을 붙여 바꿉니다. 이 주석은 README 화면에 표시되지 않습니다.</li>
+    <li><strong>Commit changes</strong>에서 <strong>main에 직접 커밋</strong>합니다.</li>
+    <li>Vercel <strong>Deployments</strong>에서 방금 만든 커밋의 <strong>새 배포</strong>가 <strong>Ready · Production</strong>인지 확인합니다. 이전에 막힌 배포의 Redeploy를 누르지 마세요.</li>
+  </ol>
+  <p>기존 프로젝트·주소·환경변수·Upstash DB는 그대로 씁니다. 같은 작성자 오류가 계속되면 Vercel <strong>Account Settings → Login Connections</strong>에 커밋한 GitHub 계정이 연결됐는지 확인하세요. 이후 업데이트에서도 같은 제한이 생길 수 있습니다.</p>
 </details>
 
 <details id="update-help">

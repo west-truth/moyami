@@ -177,6 +177,19 @@ Vercel에서 연결된 **GitHub 저장소**와 **Production Branch**가 방금 �
 
 자동 배포가 생성되면 배포 상세에서 **소스 브랜치·커밋**, **Ready**, **Production** 여부를 확인합니다. 실패했거나 Preview로만 배포됐다면 운영 주소에는 적용되지 않습니다. 자동 배포가 없으면 Git 연결과 배포 오류를 확인하세요. 예전 배포의 Redeploy로 대신하지 마세요.
 
+##### Deployment Blocked: 커밋 작성자 권한으로 막힌 경우
+
+배포 상세에 `The deployment was blocked because the commit author did not have contributing access`가 표시되면 아래 절차를 따르세요. Vercel Hobby의 비공개 저장소는 커밋 작성자가 해당 Vercel 프로젝트를 소유한 Hobby 계정과 연결되어 있어야 합니다. 원본 코드를 가져와도 작성자는 원본 개발자로 남을 수 있습니다. [Vercel 공식 안내](https://vercel.com/docs/deployments/troubleshoot-project-collaboration)
+
+**먼저 1단계로 내 저장소의 main에 최신 코드를 가져온 상태여야 합니다.** 아래 작업은 배포를 다시 요청하는 절차이며 최신 코드를 가져오지는 않습니다.
+
+1. **Vercel에 연결한 본인 GitHub 계정**으로 로그인하고, 내 저장소의 **main → README.md → 연필(Edit)**을 엽니다.
+2. 파일 맨 아래에 `<!-- deployment check -->`를 추가합니다. 이미 있으면 주석 안에 날짜 등을 붙여 내용을 바꿉니다. 이 주석은 README 화면에 표시되지 않습니다.
+3. **Commit changes**에서 **main에 직접 커밋**합니다. 본인 명의의 새 커밋이 만들어집니다.
+4. Vercel **Deployments**에서 방금 만든 커밋의 **새 배포**가 **Ready · Production**인지 확인합니다. 이전에 막힌 배포의 Redeploy를 누르는 것과는 다릅니다.
+
+기존 프로젝트·주소·환경변수·Upstash DB를 그대로 사용할 수 있습니다. 같은 작성자 오류가 계속되면 Vercel **Account Settings → Login Connections**에 커밋한 GitHub 계정이 연결됐는지 확인하세요. 이후 원본 업데이트에서도 같은 제한이 생길 수 있습니다.
+
 #### 3. 앱에 새 화면 적용
 
 운영 주소를 시크릿 창에서 열어 새 화면인지 먼저 확인합니다. 시크릿 창에는 새 화면이 보이면 기존 앱의 캐시 문제일 수 있습니다. 기존 앱을 열어 업데이트 안내를 확인한 뒤 **해당 주소의 브라우저 탭과 설치형 앱 창을 모두 닫고 다시 엽니다**. 새로고침만으로는 대기 중인 업데이트가 적용되지 않을 수 있습니다.
