@@ -148,14 +148,38 @@ moyami는 설치형 앱이라 화면 파일을 기기에 보관하고, **앱의 
 
 ### 새 버전 받기
 
-원터치 배포는 내 GitHub 계정에 이 저장소의 복사본을 만들고, Vercel은 그 복사본이 바뀔 때마다 다시 배포합니다. 새 버전은 원본 변경을 내 복사본으로 가져오면 됩니다. Fork로 배포했다면 GitHub에서 내 저장소를 열고 **Sync fork → Update branch**만 누르면 됩니다. 원터치 배포로 만든 복사본에는 이 버튼이 없으니 아래 명령을 씁니다.
+업데이트는 **내 저장소에 최신 코드 가져오기 → 그 코드를 운영 배포 → 앱의 새 버전 적용** 순서입니다. Vercel의 **Redeploy**만 누르면 선택한 기존 배포의 코드를 다시 빌드하므로 원본의 새 커밋을 가져오지 않습니다.
+
+#### 1. 내 저장소의 main 업데이트
+
+최신 기능은 원본의 **main** 브랜치에 올라옵니다. 다른 작업 브랜치는 이전 코드일 수 있습니다.
+
+- **Fork로 배포했다면**: 내 GitHub 저장소에서 브랜치를 **main**으로 선택하고 **Sync fork → Update branch**를 누릅니다. 충돌 안내가 나오면 먼저 충돌을 해결해야 합니다.
+- **원클릭으로 만든 복사본이라면**: Sync fork가 없습니다. 아래 명령으로 원본 변경을 병합합니다. 처음에는 커밋 이력이 달라 `--allow-unrelated-histories`가 필요할 수 있습니다. 같은 파일을 양쪽에서 추가한 것으로 처리되어 충돌할 수도 있습니다.
+
+아래 예시는 내 저장소의 운영 브랜치가 `main`인 경우입니다. 주소를 바꾸어 새 폴더에서 실행합니다.
 
 ```sh
-git clone https://github.com/내-계정/내-저장소.git && cd 내-저장소
+git clone --branch main https://github.com/내-계정/내-저장소.git
+cd 내-저장소
 git remote add upstream https://github.com/west-truth/moyami.git
-git pull upstream main
-git push origin main   # Vercel이 자동으로 다시 배포합니다.
+git fetch upstream
+git merge --no-edit --allow-unrelated-histories upstream/main
 ```
+
+병합이 성공했는지 `git status`로 확인한 뒤 `git push origin main`을 실행합니다. 충돌이 있으면 파일을 검토·수정하고 `git add`와 `git commit`으로 병합을 마쳐야 합니다. 병합을 취소하려면 `git merge --abort`를 사용합니다. 이미 upstream을 등록한 폴더에서는 clone과 remote add를 반복하지 않고 fetch부터 실행합니다.
+
+#### 2. 운영 배포 확인
+
+Vercel에서 연결된 **GitHub 저장소**와 **Production Branch**가 방금 업데이트한 저장소의 `main`인지 확인합니다. `ux/usability-pass` 같은 다른 브랜치를 배포하면 main의 새 기능이 반영되지 않습니다.
+
+자동 배포가 생성되면 배포 상세에서 **소스 브랜치·커밋**, **Ready**, **Production** 여부를 확인합니다. 실패했거나 Preview로만 배포됐다면 운영 주소에는 적용되지 않습니다. 자동 배포가 없으면 Git 연결과 배포 오류를 확인하세요. 예전 배포의 Redeploy로 대신하지 마세요.
+
+#### 3. 앱에 새 화면 적용
+
+운영 주소를 시크릿 창에서 열어 새 화면인지 먼저 확인합니다. 시크릿 창에는 새 화면이 보이면 기존 앱의 캐시 문제일 수 있습니다. 기존 앱을 열어 업데이트 안내를 확인한 뒤 **해당 주소의 브라우저 탭과 설치형 앱 창을 모두 닫고 다시 엽니다**. 새로고침만으로는 대기 중인 업데이트가 적용되지 않을 수 있습니다.
+
+사이트 데이터 삭제는 마지막 수단입니다. 삭제하면 동기화되지 않은 기록과 기기에만 저장된 북마크·메모·설정이 사라질 수 있습니다.
 
 ### 이름과 주소 바꾸기
 

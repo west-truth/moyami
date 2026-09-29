@@ -199,15 +199,18 @@ footer{margin-top:40px;padding-top:20px;border-top:1px solid var(--line);color:v
 
 <details id="sync-help">
   <summary>새 버전으로 업데이트하고 싶어요</summary>
-  <p><strong>Fork로 배포했다면</strong> GitHub에서 내 저장소를 열고 파일 목록 위의 <strong>Sync fork → Update branch</strong>를 누릅니다. Vercel이 자동으로 다시 배포합니다.</p>
+  <p><strong>Fork로 배포했다면</strong> GitHub에서 내 저장소의 <strong>main</strong> 브랜치를 선택하고 <strong>Sync fork → Update branch</strong>를 누릅니다. 충돌이 있으면 먼저 해결해야 합니다.</p>
   <p><strong>Vercel 배포 시작으로 배포했다면</strong> 내 저장소가 Fork가 아닌 복사본이라 이 버튼이 없습니다. <a href="https://github.com/west-truth/moyami#새-버전-받기" target="_blank" rel="noopener noreferrer">README의 새 버전 받기</a> 명령으로 가져옵니다.</p>
+  <p>Vercel이 연결한 저장소와 <strong>Production Branch가 main</strong>인지 확인하세요. 최신 기능은 원본의 main에 올라오며, 다른 작업 브랜치는 이전 코드일 수 있습니다. 새 배포의 브랜치·커밋과 <strong>Ready · Production</strong> 상태를 확인합니다.</p>
+  <p><strong>Redeploy만으로 원본의 최신 코드를 가져오지는 않습니다.</strong> 선택한 기존 배포를 다시 빌드하는 기능입니다. 내 저장소 업데이트와 새 운영 배포를 먼저 확인하세요.</p>
   <p class="hint">배포가 끝나면 아래 “예전 화면이 보여요” 안내대로 앱을 닫았다 엽니다.</p>
 </details>
 
 <details id="update-help">
   <summary>새 버전을 배포했는데 예전 화면이 보여요</summary>
+  <p>먼저 운영 주소를 시크릿 창에서 열어 보세요. 여기서도 예전 화면이면 위 안내에 따라 저장소·브랜치·배포 커밋을 확인합니다.</p>
   <p>moyami는 설치형 앱이라 화면 파일을 기기에 보관하고, <strong>앱의 탭과 창을 모두 닫았다가 다시 열 때</strong> 새 버전으로 바꿉니다. 새로고침만으로는 바뀌지 않습니다. 휴대폰은 최근 앱 목록에서도 닫아 주세요.</p>
-  <p>그래도 안 되면 사이트 데이터를 지웁니다. 이 기기에만 있던 설정은 사라지지만, 동기화된 읽기 기록은 다시 로그인하면 돌아옵니다.</p>
+  <p>사이트 데이터 삭제는 마지막 수단입니다. 동기화되지 않은 기록과 이 기기의 북마크·메모·설정이 사라질 수 있습니다. 동기화된 읽기 기록은 다시 로그인하면 돌아옵니다.</p>
   <ul>
     <li><strong>PC Chrome·Edge</strong> — F12 → Application → Storage → <strong>Clear site data</strong> → 새로고침</li>
     <li><strong>Android Chrome</strong> — 설정 → 사이트 설정 → 모든 사이트 → 내 앱 주소 → 삭제</li>
