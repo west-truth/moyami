@@ -902,7 +902,7 @@ async function openReader(chapterUrl, chapterIndex = 0, targetAnchor) {
         Math.min(pages.length, targetAnchor?.end ? pages.length : targetAnchor?.start ? 1 : Number(savedProgress.page) || 1),
       ),
       comicReader,
-      restoring = current > 1;
+      restoring = current > 1 || Boolean(targetAnchor?.end);
     const update = () => {
       $("readerProgress").textContent = `${Math.round(current / pages.length * 100)}%`;
       $("readerProgress").setAttribute('aria-label', `현재 페이지 ${current} / ${pages.length} (${Math.round(current / pages.length * 100)}%)`);
@@ -1014,7 +1014,10 @@ async function openReader(chapterUrl, chapterIndex = 0, targetAnchor) {
       if (!restoreActive) return;
       const target = document.querySelector(`.page[data-page="${restoreTarget}"]`);
       if (!target) return;
-      if (!comicReader.paged) target.scrollIntoView();
+      if (!comicReader.paged) {
+        if (targetAnchor?.end) scrollTo(0, document.scrollingElement.scrollHeight);
+        else target.scrollIntoView();
+      }
       if (!restoring || target.querySelector("img")?.naturalWidth || performance.now() > restoreDeadline) { stopRestore(); return; }
       restoreTimer = setTimeout(restorePosition, 100);
     };

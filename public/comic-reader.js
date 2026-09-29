@@ -127,7 +127,9 @@ export function createComicReader({ root, total, initial, storageKey, chapterUrl
     boundaryHost.hidden = paged() || !nextChapterTitle;
     mountComicScrollBoundary(boundaryHost, boundaryHost.hidden ? null : {
       content:root,chapterId:chapterUrl,title:nextChapterTitle,
-      ready:rows.every(row=>row.dataset.loaded==='true'&&!row.classList.contains('errorPage')),
+      // Earlier images can be skipped, fail, or be unloaded by the bounded image cache.
+      // Only the final image must settle before a scroll gesture can leave the chapter.
+      ready:rows.at(-1)?.dataset.loaded==='true'&&!rows.at(-1).classList.contains('errorPage'),
       onNextChapter:()=>openAdjacentChapter(1),
     });
     if (previousMode !== mode) {
@@ -148,6 +150,18 @@ export function createComicReader({ root, total, initial, storageKey, chapterUrl
   }
   function turn(step, allowChapter = true) {
     if (disposed || chapterOpening) return;
+    if (!paged()) {
+      const scroller = document.scrollingElement;
+      const atEdge = step > 0
+        ? scroller.scrollHeight - scroller.clientHeight - scroller.scrollTop <= 2
+        : scroller.scrollTop <= 2;
+      if (atEdge) {
+        if (allowChapter) void openAdjacentChapter(step);
+      } else {
+        window.scrollBy({top:step * Math.max(100, innerHeight * .8),behavior:'instant'});
+      }
+      return;
+    }
     const all = mode === 'spread' ? spreads() : undefined;
     const index = all ? comicSpreadForPage(all,current-1) : current-1;
     const target = index + step, count = all?.length ?? total;
@@ -200,7 +214,13 @@ export function createComicReader({ root, total, initial, storageKey, chapterUrl
   };
   $('comicBookmarks').onchange = () => { if ($('comicBookmarks').value) go(Number($('comicBookmarks').value)); };
   const keydown = event => {
-    if (document.querySelector('dialog[open]')) return;
+    if (document.querySelector('dialog[open], [role="dialog"][aria-modal="true"]')) return;
+    if (!paged() && ['ArrowDown','ArrowUp'].includes(event.key)) {
+      if (event.defaultPrevented || event.isComposing || event.ctrlKey || event.metaKey || event.altKey || isFixedDocumentInteractiveTarget(event.target)) return;
+      event.preventDefault();
+      turn(event.key === 'ArrowDown' ? 1 : -1, !event.repeat);
+      return;
+    }
     handleFixedDocumentKeyDown(event, { rtl: profile.direction === 'rtl',
       dismiss: () => { if (!document.body.classList.contains('immersive')) return false; immersive(); return true; },
       turnPage: step => turn(step, !event.repeat), toggleImmersive: immersive, toggleFullscreen: fullscreen, zoomBy });

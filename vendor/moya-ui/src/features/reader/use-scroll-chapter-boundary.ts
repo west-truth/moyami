@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState, type RefObject, type WheelEvent as ReactWheelEvent } from 'react';
+import { isFixedDocumentInteractiveTarget } from '../fixed-document/fixed-document-input';
 
 const END_EPSILON_PX = 2;
 const END_IDLE_MS = 280;
@@ -348,7 +349,8 @@ export function useScrollChapterBoundary(input: {
       touchLastYRef.current = undefined;
     };
     const onTouchStart = (event: TouchEvent) => {
-      if (event.touches.length !== 1) {
+      if (event.touches.length !== 1 || isFixedDocumentInteractiveTarget(event.target) ||
+          document.querySelector('dialog[open], [role="dialog"][aria-modal="true"]')) {
         resetTouch();
         return;
       }

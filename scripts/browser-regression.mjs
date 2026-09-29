@@ -968,17 +968,24 @@ try {
     await page.locator('#works .card').first().click();await page.locator('#chapters .chapter').nth(1).click();await page.locator('#reader').waitFor();
     await page.evaluate(async()=>(await import('/account-storage.js')).localStorage.removeItem('moya-source-selection'));
     await page.reload();await page.locator('#recent').waitFor();
-    const prepared=page.waitForRequest(r=>r.url().endsWith('/api/runtime/prepare') && r.postDataJSON().action==='pages');
-    await prepared; await page.waitForTimeout(800);
+    const warmedChapter=async()=>{
+      const response=await page.waitForResponse(r=>r.url().endsWith('/api/runtime/finish')&&r.request().postDataJSON().token==='pages');
+      const {result}=await response.json();
+      // Image prefetch starts after the chapter result is cached. Wait for that
+      // observable completion instead of assuming the worker finishes in 800 ms.
+      await page.waitForFunction(url=>performance.getEntriesByName(new URL(url,location.href).href).some(entry=>entry.responseEnd>0),result[0].imageUrl);
+      return requests.filter(row=>row.action==='pages').at(-1).params.chapterUrl;
+    };
+    const resumedChapter=await warmedChapter();
     assert.equal(await page.locator('#recent').isVisible(),true);
     assert.equal(await page.locator('#loadingStatus').isVisible(),false);
     const before=requests.length;
+    const nextPrepared=warmedChapter();
     await page.locator('#recentFeatured .primary-btn').click();await page.locator('#reader').waitFor();
-    assert.equal(requests.length,before,'resume reuses both detail and chapter');
-    const nextPrepared=page.waitForRequest(r=>r.url().endsWith('/api/runtime/prepare') && r.postDataJSON().action==='pages');
-    await nextPrepared;await page.waitForTimeout(800);
+    assert.equal(requests.slice(before).filter(row=>row.action==='detail'||row.action==='pages'&&row.params.chapterUrl===resumedChapter).length,0,'resume reuses both detail and chapter');
+    const nextChapter=await nextPrepared;
     const afterWarm=requests.length;const chapterTitle=await page.locator('#readerChapterTitle').textContent();await page.locator('#nextChapter').click();await page.waitForFunction(title=>document.querySelector('#readerChapterTitle').textContent!==title,chapterTitle);await page.locator('#reader').waitFor();
-    assert.equal(requests.length,afterWarm,'next chapter reuses prepared result');
+    assert.equal(requests.slice(afterWarm).filter(row=>row.action==='pages'&&row.params.chapterUrl===nextChapter).length,0,'next chapter reuses prepared result');
   });
   await check('foreground navigation cancels slow speculation without stale screens or errors', async context => {
     await context.addInitScript(()=>Object.defineProperty(navigator,'onLine',{get:()=>true}));
@@ -1017,6 +1024,90 @@ try {
     await page.locator('.discovery-quick-jump-row').filter({hasText:'테스트 만화'}).first().waitFor();
     await page.keyboard.press('Escape');
     assert.equal(await page.evaluate(()=>JSON.parse(localStorage.getItem('moya-source-selection')).repositoryUrl),other);
+  });
+  async function openScrollComic(context, {mode='continuous-seamless',count=3,width=1440,height=900,imageHeight=900,failFirst=false}={}) {
+    fixturePageCount=count;generation=2;
+    const page=await ready(context);await page.setViewportSize({width,height});
+    await page.evaluate(mode=>localStorage.setItem('moya-comic-settings',JSON.stringify({mode:'vertical',seamlessVertical:mode==='continuous-seamless'})),mode);
+    await page.route('**/fixture/image?*',route=>failFirst&&new URL(route.request().url()).searchParams.get('generation')==='3'
+      ? route.fulfill({status:404,body:'missing'})
+      : route.fulfill({contentType:'image/svg+xml',body:`<svg xmlns="http://www.w3.org/2000/svg" width="600" height="${imageHeight}"><rect width="600" height="${imageHeight}" fill="#468"/></svg>`}));
+    await page.locator('#works .card').first().click();await page.locator('#continueReading').click();
+    await page.locator('#pages[data-comic-mode="'+mode+'"]').waitFor();
+    return page;
+  }
+  async function scrollComicToEnd(page) {
+    const chapter=Number((await page.locator('#readerChapterTitle').textContent()).replace('Chapter ',''));
+    await page.locator('#pages [data-scroll-chapter-boundary] strong').filter({hasText:new RegExp('^Chapter '+(chapter+1)+'$')}).waitFor();
+    await page.evaluate(()=>new Promise(resolve=>requestAnimationFrame(()=>requestAnimationFrame(resolve))));
+    await page.evaluate(()=>{document.activeElement?.blur();dispatchEvent(new Event('wheel'));scrollTo(0,document.scrollingElement.scrollHeight);});
+    await page.waitForFunction(()=>[...document.querySelectorAll('#pages .page')].at(-1)?.dataset.loaded==='true');
+    await page.evaluate(()=>scrollTo(0,document.scrollingElement.scrollHeight));
+    await page.locator('#pages [data-scroll-chapter-boundary-armed=true]').waitFor();
+  }
+  for(const mode of ['continuous','continuous-seamless']) await check(`scroll comic keyboard traverses tall pages and chapter edges: ${mode}`,async context=>{
+    const page=await openScrollComic(context,{mode,count:1,imageHeight:3000});
+    await page.waitForFunction(()=>document.querySelector('#pages .page')?.dataset.loaded==='true');
+    await page.evaluate(()=>{document.activeElement?.blur();dispatchEvent(new Event('wheel'));scrollTo(0,0);});
+    await page.keyboard.press('ArrowRight');
+    await page.waitForFunction(()=>scrollY>100);
+    assert.equal(await page.locator('#readerChapterTitle').textContent(),'Chapter 1','a tall final image must be read before advancing');
+    for(const [i,key] of ['ArrowRight','ArrowDown','PageDown','Space'].entries()) {
+      await scrollComicToEnd(page);
+      await page.evaluate(key=>dispatchEvent(new KeyboardEvent('keydown',{key:key==='Space'?' ':key,repeat:true,bubbles:true,cancelable:true})),key);
+      assert.equal(await page.locator('#readerChapterTitle').textContent(),'Chapter '+(i+1),'held key cannot skip chapters');
+      await page.keyboard.press(key);
+      await page.waitForFunction(n=>document.getElementById('readerChapterTitle').textContent==='Chapter '+n,i+2);
+    }
+    await page.locator('#pages [data-scroll-chapter-boundary] strong').filter({hasText:'Chapter 6'}).waitFor();
+    await page.waitForFunction(()=>document.querySelector('#pages .page')?.dataset.loaded==='true');
+    await page.evaluate(()=>new Promise(resolve=>requestAnimationFrame(()=>requestAnimationFrame(resolve))));
+    await page.evaluate(()=>{document.activeElement?.blur();dispatchEvent(new Event('wheel'));scrollTo(0,0);});
+    await page.keyboard.press('ArrowUp');
+    await page.waitForFunction(()=>document.getElementById('readerChapterTitle').textContent==='Chapter 4');
+    await page.locator('#pages [data-scroll-chapter-boundary] strong').filter({hasText:'Chapter 5'}).waitFor();
+    await page.waitForFunction(()=>document.querySelector('#pages .page')?.dataset.loaded==='true'&&scrollY>0&&document.scrollingElement.scrollHeight-innerHeight-scrollY<=2);
+  });
+  for(const mobile of [false,true]) await check(`scroll comic chapter gesture works in reader margins: ${mobile?'touch':'wheel'}`,async context=>{
+    const page=await openScrollComic(context,{width:mobile?390:1440,height:900,count:mobile?1:3,imageHeight:mobile?300:900});
+    await scrollComicToEnd(page);
+    const point=mobile?{x:195,y:830}:{x:10,y:450};
+    assert.equal(await page.evaluate(p=>document.getElementById('pages').contains(document.elementFromPoint(p.x,p.y)),point),false,'gesture starts outside image container');
+    if(mobile) {
+      const cdp=await context.newCDPSession(page);
+      await cdp.send('Input.dispatchTouchEvent',{type:'touchStart',touchPoints:[point]});
+      await cdp.send('Input.dispatchTouchEvent',{type:'touchMove',touchPoints:[{x:point.x,y:point.y-100}]});
+      await cdp.send('Input.dispatchTouchEvent',{type:'touchEnd',touchPoints:[]});
+    } else {await page.mouse.move(point.x,point.y);await page.mouse.wheel(0,120);}
+    await page.waitForFunction(()=>document.getElementById('readerChapterTitle').textContent==='Chapter 2');
+  });
+  await check('scroll comic reaching the end during a touch requires lifting and a new swipe',async context=>{
+    const page=await openScrollComic(context,{width:390,height:900});
+    await scrollComicToEnd(page);
+    await page.evaluate(()=>scrollBy(0,-180));
+    await page.locator('#pages [data-scroll-chapter-boundary-armed=false]').waitFor();
+    const cdp=await context.newCDPSession(page);
+    await cdp.send('Input.dispatchTouchEvent',{type:'touchStart',touchPoints:[{x:195,y:650}]});
+    await cdp.send('Input.dispatchTouchEvent',{type:'touchMove',touchPoints:[{x:195,y:350}]});
+    await page.waitForFunction(()=>document.scrollingElement.scrollHeight-innerHeight-scrollY<=2);
+    await page.waitForTimeout(400);
+    await cdp.send('Input.dispatchTouchEvent',{type:'touchMove',touchPoints:[{x:195,y:150}]});
+    await cdp.send('Input.dispatchTouchEvent',{type:'touchEnd',touchPoints:[]});
+    await page.waitForTimeout(400);
+    assert.equal(await page.locator('#readerChapterTitle').textContent(),'Chapter 1','the gesture that reaches the end must not advance');
+    await page.locator('#pages [data-scroll-chapter-boundary-armed=true]').waitFor();
+    await cdp.send('Input.dispatchTouchEvent',{type:'touchStart',touchPoints:[{x:195,y:650}]});
+    await cdp.send('Input.dispatchTouchEvent',{type:'touchMove',touchPoints:[{x:195,y:500}]});
+    await cdp.send('Input.dispatchTouchEvent',{type:'touchEnd',touchPoints:[]});
+    await page.waitForFunction(()=>document.getElementById('readerChapterTitle').textContent==='Chapter 2');
+  });
+  await check('scroll comic can advance after skipped or failed earlier images',async context=>{
+    const page=await openScrollComic(context,{count:30,failFirst:true});
+    await page.locator('#pages .errorPage').waitFor();
+    await scrollComicToEnd(page);
+    assert.ok(await page.locator('#pages .page:not([data-loaded=true])').count()>0);
+    await page.mouse.move(700,450);await page.mouse.wheel(0,120);
+    await page.waitForFunction(()=>document.getElementById('readerChapterTitle').textContent==='Chapter 2');
   });
   for (const mode of ['continuous','continuous-seamless','novel-scroll']) await check(`scroll chapter boundary: ${mode} requires a fresh wheel or touch gesture`, async context => {
     const novel=mode==='novel-scroll';fixtureItemType=novel?2:0;fixturePageCount=3;generation=2;
