@@ -4,11 +4,13 @@ import { createServer } from 'node:http';
 import { mkdtemp, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { createApplication } from '../server/app.js';
+import { createTicketCodec } from '../server/tickets.js';
+import { createHash } from 'node:crypto';
 
 test('account HTTP flow: bootstrap, cookies, invites, CSRF, logout and missing configuration', async () => {
   const original = {...process.env}, directory=await mkdtemp(`${tmpdir()}/moyami-auth-`);
   process.env.BOOTSTRAP_KEY='test-bootstrap-key-'.repeat(3);process.env.AUTH_FILE=`${directory}/auth.json`;process.env.COOKIE_SECURE='1';
-  for(const name of ['UPSTASH_REDIS_REST_URL','UPSTASH_REDIS_REST_TOKEN','KV_REST_API_URL','KV_REST_API_TOKEN','BROKER_STORE'])delete process.env[name];
+  for(const name of ['UPSTASH_REDIS_REST_URL','UPSTASH_REDIS_REST_TOKEN','KV_REST_API_URL','KV_REST_API_TOKEN','BROKER_STORE','APP_SECRET','SOURCE_OUTBOUND_PROXY'])delete process.env[name];
   let app=createApplication({serverless:true});
   const server=createServer((req,res)=>{app.handle(req,res).catch(()=>res.destroy());});
   await new Promise<void>(resolve=>server.listen(0,'127.0.0.1',resolve));
@@ -26,6 +28,15 @@ test('account HTTP flow: bootstrap, cookies, invites, CSRF, logout and missing c
     const signup=await post('auth/register',{...credentials,key:process.env.BOOTSTRAP_KEY});assert.equal(signup.status,200);assert.equal((await signup.json()).user.role,'admin');
     for(const attr of ['HttpOnly','SameSite=Strict','Secure'])assert.ok(signup.headers.get('set-cookie')!.includes(attr));
     const owner=cookie(signup);
+    const tickets=createTicketCodec(createHash('sha256').update('moyami-tickets:'+process.env.BOOTSTRAP_KEY).digest('hex'));
+    const imageTicket=tickets.seal({url:'https://1.1.1.1/image.jpg',headers:{Referer:'https://example.com/'},sourceId:'1',expiresAt:Date.now()+60000});
+    const imagePath=base+'/api/image?ticket='+imageTicket+'&direct=1';
+    assert.equal((await fetch(imagePath,{redirect:'manual'})).status,401,'direct route still requires login');
+    const direct=await fetch(imagePath,{headers:{cookie:owner},redirect:'manual'});
+    assert.equal(direct.status,302);assert.equal(direct.headers.get('location'),'https://1.1.1.1/image.jpg');
+    assert.equal(direct.headers.get('referrer-policy'),'no-referrer');assert.equal(await direct.text(),'','image bytes do not pass through app');
+    assert.notEqual((await fetch(imagePath.replace(imageTicket,'invalid'),{headers:{cookie:owner},redirect:'manual'})).status,302,'invalid tickets cannot redirect');
+
     assert.equal((await post('auth/register',{...credentials,username:'second',key:process.env.BOOTSTRAP_KEY})).status,401);
     assert.equal((await post('runtime/cancel',{},owner,{'sec-fetch-site':'cross-site'})).status,401);
     assert.equal((await post('runtime/cancel',{},owner)).status,200);

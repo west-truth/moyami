@@ -5,23 +5,26 @@ export function downloadSettings() {
   let saved;
   try { saved = JSON.parse(localStorage.getItem(key)); } catch {}
   return {
+    directImages: saved?.directImages !== false,
     prefetch: saved?.prefetch !== false,
     pages: [2, 8, 16].includes(saved?.pages) ? saved.pages : 8,
     cacheMiB: [16, 32, 64, 128].includes(saved?.cacheMiB) ? saved.cacheMiB : 32,
   };
 }
 export function initializeDownloads({ changed, clear }) {
+  const direct = document.getElementById('downloadDirectImages');
   const enabled = document.getElementById('downloadPrefetch');
   const pages = document.getElementById('downloadPages');
   const capacity = document.getElementById('downloadCacheSize');
   const status = document.getElementById('downloadStatus');
   const draw = () => {
     const value = downloadSettings();
+    direct.checked = value.directImages;
     enabled.checked = value.prefetch; pages.value = String(value.pages);
     pages.disabled = !value.prefetch; capacity.value = String(value.cacheMiB);
   };
-  for (const field of [enabled, pages, capacity]) field.addEventListener('change', async () => {
-    localStorage.setItem(key, JSON.stringify({prefetch:enabled.checked, pages:Number(pages.value), cacheMiB:Number(capacity.value)}));
+  for (const field of [direct, enabled, pages, capacity]) field.addEventListener('change', async () => {
+    localStorage.setItem(key, JSON.stringify({directImages:direct.checked, prefetch:enabled.checked, pages:Number(pages.value), cacheMiB:Number(capacity.value)}));
     draw();
     await changed();
     status.textContent = '이 기기에 설정을 저장했습니다.';

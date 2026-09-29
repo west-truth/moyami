@@ -199,8 +199,17 @@ const handle = async (req: IncomingMessage, res: ServerResponse) => {
       return json(res, 404, { error: "not_found" });
     }
     if (req.method === "GET" && url.pathname === "/api/image") {
+      const ticket = tickets.open(url.searchParams.get("ticket") ?? "");
+      if (url.searchParams.get('direct') === '1') {
+        const target = await service.imageRedirect(ticket, abort.signal);
+        if (target) {
+          res.writeHead(302, { location: target, 'referrer-policy': 'no-referrer', 'cache-control': 'private, max-age=300' });
+          res.end();
+          return;
+        }
+      }
       const image = await service.image(
-        tickets.open(url.searchParams.get("ticket") ?? ""),
+        ticket,
         abort.signal,
       );
       res.writeHead(200, {

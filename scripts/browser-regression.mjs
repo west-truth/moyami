@@ -49,6 +49,10 @@ const server = createServer(async (req, res) => {
         if (input.token === 'preferences') output.result = [{key:'fixtureOption',kind:'text',title:'테스트 옵션',value:''}];
       }
       res.writeHead(200, { 'content-type': 'application/json' }).end(JSON.stringify(output));
+    } else if (url.pathname === '/fixture/direct-image') {
+      const mode=url.searchParams.get('mode');
+      if (mode==='denied') res.writeHead(403).end();
+      else if (!['slow','cancelled'].includes(mode)) res.writeHead(200, {'content-type':'image/png'}).end(png);
     } else if (url.pathname === '/fixture/image') {
       if (url.searchParams.get('generation') === '1') res.writeHead(410).end();
       else res.writeHead(200, { 'content-type': 'image/png' }).end(png);
@@ -944,6 +948,74 @@ try {
     await page.locator('#recentFeatured .history-remove').click();assert.equal(await page.locator('#recentWorks .history-card').count(),0);
     await page.reload();await page.locator('#recent:not([hidden])').waitFor();
   });
+  await check('direct chapter images avoid relay bytes, support canvas fallback and respect the download setting', async context => {
+    const page=await ready(context);const requests=[];
+    await page.route('**/api/image?*',route=>{
+      const url=new URL(route.request().url());requests.push(url.searchParams.has('direct')?'direct':'relay');
+      return url.searchParams.has('direct')?route.fulfill({status:302,headers:{location:base.replace('127.0.0.1','localhost')+'/fixture/direct-image','referrer-policy':'no-referrer'}}):route.fulfill({contentType:'image/png',body:png});
+    });
+    const mount=async id=>page.evaluate(async id=>{
+      const image=new Image();image.id=id;image.style.cssText='position:fixed;top:100px;left:10px;width:40px;height:40px';document.body.append(image);
+      window.imageErrors=0;image.onerror=()=>window.imageErrors++;
+      const {assignImage,flushImageQueue}=await import('/connector-images.js');
+      assignImage(image,'/api/image?ticket='+id+'&direct=1',{priority:1});flushImageQueue();
+    },id);
+    await mount('direct-test');await page.waitForFunction(()=>document.getElementById('direct-test').naturalWidth===1);
+    assert.deepEqual(requests,['direct'],'successful images never use server relay');
+    const readable=await page.evaluate(async()=>{
+      const image=document.getElementById('direct-test');
+      return (await import('/connector-images.js')).requireReadableImage(image);
+    });assert.equal(readable,true);
+    await page.waitForFunction(()=>{const img=document.getElementById('direct-test');return img.naturalWidth===1&&!img.src.includes('direct=1');});
+    assert.deepEqual(requests,['direct','relay']);
+    assert.equal(await page.evaluate(()=>{const canvas=document.createElement('canvas'),ctx=canvas.getContext('2d');ctx.drawImage(document.getElementById('direct-test'),0,0);return ctx.getImageData(0,0,1,1).data.length;}),4);
+    await page.locator('#appHeader [data-settings=appearance]').click();await page.locator('.settings-tabs [data-settings=downloads]').click();
+    assert.equal(await page.locator('#downloadDirectImages').isChecked(),true);await page.locator('#downloadDirectImages').uncheck();await page.keyboard.press('Escape');
+    await mount('relay-test');await page.waitForFunction(()=>document.getElementById('relay-test').naturalWidth===1);
+    assert.deepEqual(requests,['direct','relay','relay']);assert.equal(await page.evaluate(()=>window.imageErrors),0);
+    await page.reload();await page.locator('#recent:not([hidden])').waitFor();
+    assert.equal(await page.evaluate(async()=>(await import('/download-settings.js')).downloadSettings().directImages),false);
+  });
+  await check('reader selects validated direct images and automatic crop reloads through the relay', async context => {
+    generation=2;const page=await ready(context),imageRequests=[];
+    await page.route('**/api/runtime/finish',async route=>{
+      const response=await route.fetch(),data=await response.json();
+      if(route.request().postDataJSON().token==='pages')data.result=[{imageUrl:'/api/image?ticket=reader',directImageUrl:'/api/image?ticket=reader&direct=1'}];
+      await route.fulfill({response,json:data});
+    });
+    await page.route('**/api/image?*',route=>{
+      const direct=new URL(route.request().url()).searchParams.has('direct');imageRequests.push(direct?'direct':'relay');
+      return direct?route.fulfill({status:302,headers:{location:base.replace('127.0.0.1','localhost')+'/fixture/direct-image'}}):route.fulfill({body:png,contentType:'image/png'});
+    });
+    await page.locator('#works .card').first().click();await page.locator('#chapters .chapter').first().click();
+    await page.waitForFunction(()=>document.querySelector('#pages img')?.naturalWidth===1);
+    assert.deepEqual(imageRequests,['direct']);
+    await page.locator('#readerSettingsButton').click();await page.locator('#comicCrop').selectOption('auto');await page.keyboard.press('Escape');
+    await page.waitForFunction(()=>{const img=document.querySelector('#pages img');return img?.naturalWidth===1&&!img.src.includes('direct=1');});
+    assert.deepEqual(imageRequests,['direct','relay']);assert.equal(await page.locator('.errorPage').count(),0);
+    assert.equal(await page.locator('#comicCropStatus').textContent(),'');
+  });
+  await check('direct image rejection and timeout fall back once; cancellation stops retries', async context => {
+    const page=await ready(context);const requests=[];
+    await page.route('**/api/image?*',route=>{
+      const url=new URL(route.request().url()),id=url.searchParams.get('ticket'),direct=url.searchParams.has('direct');requests.push(id+':'+(direct?'direct':'relay'));
+      if(direct)return route.fulfill({status:302,headers:{location:base.replace('127.0.0.1','localhost')+'/fixture/direct-image?mode='+id}});
+      return route.fulfill({contentType:'image/png',body:png});
+    });
+    await page.evaluate(async()=>{
+      window.imageErrors=0;
+      const {assignImage,flushImageQueue}=await import('/connector-images.js');
+      for(const id of ['denied','slow','cancelled']) {
+        const img=new Image();img.id=id;img.style.cssText='position:fixed;top:100px;left:10px;width:40px;height:40px';img.onerror=()=>window.imageErrors++;document.body.append(img);
+        assignImage(img,'/api/image?ticket='+id+'&direct=1',{priority:1});
+      }flushImageQueue();
+    });
+    await page.waitForFunction(()=>document.getElementById('denied').naturalWidth===1);
+    await page.evaluate(()=>document.getElementById('cancelled').remove());
+    await page.waitForFunction(()=>document.getElementById('slow').naturalWidth===1,null,{timeout:10000});
+    assert.equal(requests.filter(row=>row==='denied:relay').length,1);assert.equal(requests.filter(row=>row==='slow:relay').length,1);
+    assert.equal(requests.includes('cancelled:relay'),false);assert.equal(await page.evaluate(()=>window.imageErrors),0,'intermediate failures do not break the reader');
+  });
   await check('download settings persist, stop speculation, enforce cache limits and preserve reading data', async context => {
     const page = await ready(context);
     await page.locator('#works .card').first().click();
@@ -1066,13 +1138,23 @@ try {
     await page.keyboard.press('Escape');
     assert.equal(await page.evaluate(()=>JSON.parse(localStorage.getItem('moya-source-selection')).repositoryUrl),other);
   });
-  async function openScrollComic(context, {mode='continuous-seamless',count=3,width=1440,height=900,imageHeight=900,failFirst=false}={}) {
+  async function openScrollComic(context, {mode='continuous-seamless',count=3,width=1440,height=900,imageHeight=900,failFirst=false,direct=false}={}) {
     fixturePageCount=count;generation=2;
     const page=await ready(context);await page.setViewportSize({width,height});
     await page.evaluate(mode=>localStorage.setItem('moya-comic-settings',JSON.stringify({mode:'vertical',seamlessVertical:mode==='continuous-seamless'})),mode);
     await page.route('**/fixture/image?*',route=>failFirst&&new URL(route.request().url()).searchParams.get('generation')==='3'
       ? route.fulfill({status:404,body:'missing'})
       : route.fulfill({contentType:'image/svg+xml',body:`<svg xmlns="http://www.w3.org/2000/svg" width="600" height="${imageHeight}"><rect width="600" height="${imageHeight}" fill="#468"/></svg>`}));
+    if (direct) {
+      await page.route('**/api/runtime/finish',async route=>{
+        const response=await route.fetch(),data=await response.json();
+        if(route.request().postDataJSON().token==='pages')data.result=data.result.map((row,index)=>({imageUrl:'/api/image?ticket='+index,directImageUrl:'/api/image?ticket='+index+'&direct=1'}));
+        await route.fulfill({response,json:data});
+      });
+      await page.route('**/api/image?*',route=>failFirst&&new URL(route.request().url()).searchParams.get('ticket')==='0'
+        ? route.fulfill({status:404,body:'missing'})
+        : route.fulfill({contentType:'image/svg+xml',body:`<svg xmlns="http://www.w3.org/2000/svg" width="600" height="${imageHeight}"><rect width="600" height="${imageHeight}" fill="#468"/></svg>`}));
+    }
     await page.locator('#works .card').first().click();await page.locator('#continueReading').click();
     await page.locator('#pages[data-comic-mode="'+mode+'"]').waitFor();
     return page;
@@ -1082,7 +1164,8 @@ try {
     await page.locator('#pages [data-scroll-chapter-boundary] strong').filter({hasText:new RegExp('^Chapter '+(chapter+1)+'$')}).waitFor();
     await page.evaluate(()=>new Promise(resolve=>requestAnimationFrame(()=>requestAnimationFrame(resolve))));
     await page.evaluate(()=>{document.activeElement?.blur();dispatchEvent(new Event('wheel'));scrollTo(0,document.scrollingElement.scrollHeight);});
-    await page.waitForFunction(()=>[...document.querySelectorAll('#pages .page')].at(-1)?.dataset.loaded==='true');
+    // Follow the bottom as newly decoded images replace placeholder heights.
+    await page.waitForFunction(()=>{scrollTo(0,document.scrollingElement.scrollHeight);return [...document.querySelectorAll('#pages .page')].at(-1)?.dataset.loaded==='true';});
     await page.evaluate(()=>scrollTo(0,document.scrollingElement.scrollHeight));
     await page.locator('#pages [data-scroll-chapter-boundary-armed=true]').waitFor();
   }
@@ -1142,8 +1225,8 @@ try {
     await cdp.send('Input.dispatchTouchEvent',{type:'touchEnd',touchPoints:[]});
     await page.waitForFunction(()=>document.getElementById('readerChapterTitle').textContent==='Chapter 2');
   });
-  await check('scroll comic can advance after skipped or failed earlier images',async context=>{
-    const page=await openScrollComic(context,{count:30,failFirst:true});
+  for (const direct of [false,true]) await check(`scroll comic can advance after skipped or failed earlier images: ${direct?'direct':'relay'}`,async context=>{
+    const page=await openScrollComic(context,{count:30,failFirst:true,direct});
     await page.locator('#pages .errorPage').waitFor();
     await scrollComicToEnd(page);
     assert.ok(await page.locator('#pages .page:not([data-loaded=true])').count()>0);

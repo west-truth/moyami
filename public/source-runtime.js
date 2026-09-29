@@ -54,6 +54,10 @@ export async function runBrowserSource(input, api, signal) {
     clearTimeout(timer);
     if (useConnector && connectorFailure() === 'connector_permission_required') throw new Error(connectorFailure());
     const result = await post('/api/runtime/finish', { token: bundle.token, value }, { signal: abort.signal });
+    // Old clients retain the relay URL; only clients with automatic fallback opt into redirects.
+    if (!useConnector && input.action === 'pages' && Array.isArray(result.result)) {
+      result.result = result.result.map(page => ({ ...page, imageUrl: page.directImageUrl || page.imageUrl }));
+    }
     return useConnector ? connectorImages(input.action, value, result) : result;
   } finally {
     clearTimeout(timer);

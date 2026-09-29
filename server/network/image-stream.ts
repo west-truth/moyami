@@ -9,6 +9,27 @@ import { pinnedProxyAgent } from './outbound-proxy.js';
 const maximumBytes = 20 * 1024 * 1024;
 type SourceAddress = { address: string; family: 4 | 6 };
 
+// Browser image requests cannot set source-specific credentials or arbitrary headers.
+export function canRedirectImage(headers: Record<string, string>) {
+  return Object.entries(headers).every(([key, value]) =>
+    /^(accept|user-agent|referer)$/i.test(key) && typeof value === 'string' && !/[\r\n]/.test(value));
+}
+
+export async function publicImageUrl(input: string, signal: AbortSignal) {
+  signal.throwIfAborted();
+  const url = new URL(input);
+  if (url.protocol !== 'https:' || url.username || url.password || url.hash || url.href.length > 8192)
+    throw new Error('source_url_denied');
+  const hostname = url.hostname.replace(/^\[|\]$/g, '');
+  const addresses = isIP(hostname)
+    ? [{ address: hostname }]
+    : await lookup(hostname, { all: true, verbatim: true });
+  signal.throwIfAborted();
+  if (!addresses.length || addresses.some(row => !isPublicSourceAddress(row.address)))
+    throw new Error('source_address_denied');
+  return url.href;
+}
+
 export async function openImageStream(
   input: { url: string; headers: Record<string, string> },
   signal: AbortSignal,

@@ -4,7 +4,7 @@ import {
   fixedDocumentTapStep, handleFixedDocumentKeyDown, isFixedDocumentInteractiveTarget,
   parseFixedDocumentPageDraft, mountSliders, detectComicContentBounds, captureViewportFocalAnchor, focalAnchorScrollDelta, continuousPageNearestViewportCenter, mountReaderGestures, DEFAULT_GESTURE_BINDINGS, gestureAction, dispatchReaderAction,
 } from '/moya-ui.js';
-import { setImagePriority, flushImageQueue, assignImage, disposeImages } from '/connector-images.js';
+import { setImagePriority, flushImageQueue, assignImage, disposeImages, requireReadableImage } from '/connector-images.js';
 const $ = id => document.getElementById(id);
 const modes = ['single', 'spread', 'continuous', 'continuous-seamless'];
 const clamp = (n, low, high) => Math.max(low, Math.min(high, n));
@@ -63,6 +63,7 @@ export function createComicReader({ root, total, initial, storageKey, chapterUrl
       if (!image?.naturalWidth) continue;
       let crop=profile.crop==='manual'?profile.manualCrop:undefined;
       if(profile.crop==='auto') {
+        if (requireReadableImage(image)) continue;
         if(!crops.has(image)) {try {const canvas=document.createElement('canvas'),ratio=Math.min(1,512/Math.max(image.naturalWidth,image.naturalHeight));canvas.width=Math.max(4,Math.round(image.naturalWidth*ratio));canvas.height=Math.max(4,Math.round(image.naturalHeight*ratio));const ctx=canvas.getContext('2d',{willReadFrequently:true});ctx.drawImage(image,0,0,canvas.width,canvas.height);crops.set(image,detectComicContentBounds(ctx.getImageData(0,0,canvas.width,canvas.height).data,canvas.width,canvas.height)||{});}catch{crops.set(image,{});$('comicCropStatus').textContent='이 이미지의 자동 분석은 원본 접근 제한으로 사용할 수 없습니다. 직접 조절할 수 있습니다.';}}
         crop=crops.get(image);
       }

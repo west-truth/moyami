@@ -8,7 +8,7 @@ import {
 } from "./runtime/preferences.js";
 import { novelHtmlText } from "./runtime/novel-content.js";
 import type { ImageTicket } from "./tickets.js";
-import { openImageStream } from "./network/image-stream.js";
+import { canRedirectImage, openImageStream, publicImageUrl } from "./network/image-stream.js";
 
 const allowedActions = new Set([
   "metadata",
@@ -154,6 +154,7 @@ export class SourceService {
         return {
           ticket,
           imageUrl: `/api/image?ticket=${encodeURIComponent(ticket)}`,
+          ...(!this.outboundProxy && canRedirectImage(headers) ? { directImageUrl: `/api/image?ticket=${encodeURIComponent(ticket)}&direct=1` } : {}),
         };
       });
     } else {
@@ -194,6 +195,11 @@ export class SourceService {
       } else output[key] = this.decorateCovers(item, seal, sourceId, depth + 1);
     }
     return output;
+  }
+
+  async imageRedirect(ticket: ImageTicket, signal: AbortSignal) {
+    if (this.outboundProxy || !canRedirectImage(ticket.headers)) return undefined;
+    return publicImageUrl(ticket.url, signal);
   }
 
   async image(ticket: ImageTicket, signal: AbortSignal) {

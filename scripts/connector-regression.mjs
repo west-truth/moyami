@@ -137,6 +137,8 @@ try {
  await check('real reader Worker → connector → cover and chapter images, no server relay',async()=>{
   await page.evaluate(()=>{localStorage.setItem('moya-network-mode','browser');localStorage.setItem('moyami-download-settings',JSON.stringify({prefetch:false}));localStorage.setItem('moya-source-repositories',JSON.stringify(['https://example.com/catalog']));});
   await page.goto('http://127.0.0.1:4179/reader');
+  await page.locator('#recent:not([hidden])').waitFor();
+  await page.locator('[data-nav=browse]:visible').first().click();
   await page.locator('.card').first().waitFor({timeout:10000});
   await page.waitForFunction(()=>document.querySelector('.card img')?.naturalWidth===1);
   assert.equal(requests.filter(row=>row.url==='/image').at(-1).headers.referer,'https://example.com/work');

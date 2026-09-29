@@ -1,4 +1,5 @@
 import { connectorCall } from './connector.js';
+import { downloadSettings } from './download-settings.js';
 const states = new Map();
 let active = 0;
 const blobs = new Map();
@@ -53,15 +54,30 @@ function drain() {
     state.image.dispatchEvent(new Event('moya-image-loading'));
     if (!state.request) {
       let complete = false;
+      let directTimer;
+      const capture = Boolean(state.relayUrl);
       const finish = () => {
         if (complete) return; complete = true;
-        state.image.removeEventListener('load', loaded); state.image.removeEventListener('error', failed);
+        clearTimeout(directTimer);
+        state.image.removeEventListener('load', loaded); state.image.removeEventListener('error', failed, capture);
         state.finishNative = undefined; state.loading = false; active--; queueMicrotask(drain);
       };
+      const fallback = () => {
+        clearTimeout(directTimer); state.usingDirect = false;
+        state.url = state.relayUrl; state.image.src = state.url;
+      };
       const loaded = () => { state.loaded = true; finish(); };
-      const failed = () => { state.failed = true; finish(); };
+      const failed = event => {
+        if (state.usingDirect) { event.stopImmediatePropagation(); fallback(); return; }
+        state.failed = true; finish();
+      };
       state.finishNative = finish;
-      state.image.addEventListener('load', loaded); state.image.addEventListener('error', failed);
+      state.image.addEventListener('load', loaded); state.image.addEventListener('error', failed, capture);
+      if (state.relayUrl) {
+        if (!downloadSettings().directImages) state.url = state.relayUrl;
+        state.usingDirect = state.url !== state.relayUrl;
+        if (state.usingDirect) directTimer = setTimeout(fallback, 5000);
+      }
       state.image.loading = 'eager'; state.image.src = state.url;
       continue;
     }
@@ -85,11 +101,30 @@ new MutationObserver(() => {
 }).observe(document.documentElement, { childList: true, subtree: true });
 export function assignImage(image, url, { priority: initialPriority } = {}) {
   const previous = states.get(image); if (previous) { release(previous); states.delete(image); observer.unobserve(image); }
-  if (!url?.startsWith('moya-image:') && initialPriority === undefined) { image.src = url; return; }
+  const direct = typeof url === 'string' && url.startsWith('/api/image?') && new URL(url, location.origin).searchParams.get('direct') === '1';
+  if (!url?.startsWith('moya-image:') && !direct && initialPriority === undefined) { image.src = url; return; }
   try {
     const request = url?.startsWith('moya-image:') ? JSON.parse(decodeURIComponent(url.slice('moya-image:'.length))) : undefined;
-    states.set(image, { image, url, request, priority: initialPriority, near: false, loading: false, loaded: false, failed: false }); observer.observe(image);
+    let relayUrl;
+    if (direct) { const parsed = new URL(url, location.origin); parsed.searchParams.delete('direct'); relayUrl = parsed.pathname + parsed.search; }
+    states.set(image, { image, url, relayUrl, request, priority: initialPriority, near: false, loading: false, loaded: false, failed: false }); observer.observe(image);
   } catch { queueMicrotask(() => image.dispatchEvent(new Event('error'))); }
+}
+// Cross-origin images display without CORS; canvas analysis needs a local response.
+export function requireReadableImage(image) {
+  const state = states.get(image);
+  if (!state?.usingDirect) return false;
+  if (!state.readableRequested) {
+    state.readableRequested = true;
+    // Let the current load event finish before replacing its request and listeners.
+    queueMicrotask(() => {
+      if (states.get(image) !== state || !alive(state)) return;
+      release(state);
+      state.url = state.relayUrl; state.usingDirect = false; state.failed = false;
+      drain();
+    });
+  }
+  return true;
 }
 // Explicit priorities let paged reading retain hidden neighbours; undefined restores viewport loading.
 export function setImagePriority(image, value) {
